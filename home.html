@@ -9,6 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
     <!-- Botpress AI Chat -->
     <script src="https://cdn.botpress.cloud/webchat/v3.3/inject.js"></script>
     <script src="https://files.bpcontent.cloud/2025/10/02/12/20251002125750-U28EOJI5.js" defer></script>
@@ -69,6 +70,8 @@
             justify-content: center;
             font-weight: bold;
             color: white;
+            background-size: cover;
+            background-position: center;
         }
 
         .profile-info h3 {
@@ -196,6 +199,8 @@
             color: white;
             margin-right: 12px;
             position: relative;
+            background-size: cover;
+            background-position: center;
         }
 
         .chat-info {
@@ -272,6 +277,8 @@
             font-weight: bold;
             color: white;
             position: relative;
+            background-size: cover;
+            background-position: center;
         }
 
         .contact-info h3 {
@@ -621,6 +628,8 @@
             font-weight: bold;
             color: white;
             margin-right: 10px;
+            background-size: cover;
+            background-position: center;
         }
 
         .user-name {
@@ -661,6 +670,31 @@
 
         .btn-secondary:hover {
             background: #333333;
+        }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333333;
+            border-top: 3px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+            z-index: 1000;
+        }
+
+        .loading-spinner.active {
+            display: block;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
         /* Responsive Design */
@@ -715,6 +749,9 @@
     </style>
 </head>
 <body>
+    <!-- Loading Spinner -->
+    <div class="loading-spinner" id="globalSpinner"></div>
+
     <!-- Notifications Container -->
     <div class="notifications-container" id="notificationsContainer">
         <!-- Notifications will be dynamically added here -->
@@ -838,21 +875,23 @@
     </div>
 
     <script>
-        // Firebase configuration
+        // Firebase configuration - Using the same config as login.html
         const firebaseConfig = {
-            apiKey: "AIzaSyC4R6MK7MGC6hW3XjK0XjXpVvVfVfVfVfV",
-            authDomain: "whispa-chat-app.firebaseapp.com",
-            databaseURL: "https://whispa-chat-app-default-rtdb.firebaseio.com",
-            projectId: "whispa-chat-app",
-            storageBucket: "whispa-chat-app.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abcdef123456"
+            apiKey: "AIzaSyDLggigD7p7_-1amZKi91MVCZbLNnsQ6JE",
+            authDomain: "whispa-d453f.firebaseapp.com",
+            databaseURL: "https://whispa-d453f-default-rtdb.firebaseio.com",
+            projectId: "whispa-d453f",
+            storageBucket: "whispa-d453f.firebasestorage.app",
+            messagingSenderId: "315118383529",
+            appId: "1:315118383529:web:ba8e05067077333e8a14b8",
+            measurementId: "G-TWJY3MSC46"
         };
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
         const auth = firebase.auth();
+        const storage = firebase.storage();
 
         // Current user data
         let currentUser = {
@@ -894,28 +933,51 @@
         const usersList = document.getElementById('usersList');
         const groupName = document.getElementById('groupName');
         const groupLogo = document.getElementById('groupLogo');
+        const globalSpinner = document.getElementById('globalSpinner');
+
+        // Show/hide loading spinner
+        function showLoading() {
+            if (globalSpinner) globalSpinner.classList.add('active');
+        }
+
+        function hideLoading() {
+            if (globalSpinner) globalSpinner.classList.remove('active');
+        }
 
         // Initialize the app
         function initApp() {
+            showLoading();
+            
             // Set up authentication state observer
             auth.onAuthStateChanged((user) => {
                 if (user) {
                     // User is signed in
                     currentUser.id = user.uid;
-                    currentUser.name = user.displayName || 'User';
-                    currentUser.avatar = user.photoURL || currentUser.name.charAt(0);
                     
-                    // Set current user info
-                    userAvatar.textContent = currentUser.avatar;
-                    userName.textContent = currentUser.name;
-                    
-                    // Update user status in database
-                    updateUserStatus('Online');
-                    
-                    // Load data from Firebase
-                    loadUsers();
-                    loadChats();
-                    listenForNotifications();
+                    // Load user data from Firestore
+                    loadUserData(user.uid).then(() => {
+                        // Set current user info
+                        userAvatar.textContent = currentUser.avatar;
+                        if (currentUser.profileImage) {
+                            userAvatar.style.backgroundImage = `url(${currentUser.profileImage})`;
+                            userAvatar.textContent = '';
+                        }
+                        userName.textContent = currentUser.name;
+                        
+                        // Update user status in database
+                        updateUserStatus('Online');
+                        
+                        // Load data from Firebase
+                        loadUsers();
+                        loadChats();
+                        listenForNotifications();
+                        
+                        hideLoading();
+                    }).catch(error => {
+                        console.error('Error loading user data:', error);
+                        // Redirect to login if user data not found
+                        window.location.href = 'login.html';
+                    });
                 } else {
                     // No user is signed in, redirect to login
                     window.location.href = 'login.html';
@@ -929,6 +991,28 @@
             if (window.innerWidth <= 768) {
                 window.location.href = 'home2.html';
             }
+        }
+
+        // Load user data from Firestore
+        async function loadUserData(userId) {
+            return new Promise((resolve, reject) => {
+                database.ref('users/' + userId).once('value')
+                    .then((snapshot) => {
+                        if (snapshot.exists()) {
+                            const userData = snapshot.val();
+                            currentUser.name = userData.username || 'User';
+                            currentUser.avatar = userData.username ? userData.username.charAt(0).toUpperCase() : 'U';
+                            currentUser.profileImage = userData.profileImage || '';
+                            currentUser.phone = userData.phone || '';
+                            resolve(userData);
+                        } else {
+                            reject(new Error('User data not found'));
+                        }
+                    })
+                    .catch((error) => {
+                        reject(error);
+                    });
+            });
         }
 
         // Update user status in Firebase
@@ -999,14 +1083,21 @@
         function updateUsersList() {
             usersList.innerHTML = '';
             
+            if (users.length === 0) {
+                usersList.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">No other users found</div>';
+                return;
+            }
+            
             users.forEach(user => {
                 const userItem = document.createElement('div');
                 userItem.className = 'user-item';
                 userItem.setAttribute('data-user-id', user.id);
                 
                 userItem.innerHTML = `
-                    <div class="user-avatar">${user.avatar}</div>
-                    <div class="user-name">${user.name}</div>
+                    <div class="user-avatar" style="${user.profileImage ? `background-image: url(${user.profileImage})` : ''}">
+                        ${user.profileImage ? '' : (user.username ? user.username.charAt(0).toUpperCase() : 'U')}
+                    </div>
+                    <div class="user-name">${user.username || 'User'}</div>
                     <input type="checkbox" class="user-checkbox" style="display: none;">
                 `;
                 
@@ -1039,8 +1130,11 @@
                 const unreadCount = chat.unreadCount && chat.unreadCount[currentUser.id] ? chat.unreadCount[currentUser.id] : 0;
                 
                 chatItem.innerHTML = `
-                    <div class="chat-avatar">
-                        ${chat.isGroup ? '<i class="fas fa-users"></i>' : chat.avatar}
+                    <div class="chat-avatar" style="${chat.avatar && chat.avatar.startsWith('http') ? `background-image: url(${chat.avatar})` : ''}">
+                        ${chat.isGroup ? 
+                            (chat.avatar && chat.avatar.startsWith('http') ? '' : '<i class="fas fa-users"></i>') : 
+                            (chat.avatar && chat.avatar.startsWith('http') ? '' : (chat.avatar || 'U'))
+                        }
                         ${!chat.isGroup && chat.online ? '<div class="online-status"></div>' : ''}
                     </div>
                     <div class="chat-info">
@@ -1189,6 +1283,15 @@
             window.addEventListener('beforeunload', () => {
                 updateUserStatus('Offline');
             });
+
+            // Handle page visibility change
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    updateUserStatus('Away');
+                } else {
+                    updateUserStatus('Online');
+                }
+            });
         }
 
         // Reset group form
@@ -1282,7 +1385,17 @@
 
             // Update chat header
             currentChatName.textContent = chat.name;
-            currentChatAvatar.textContent = chat.isGroup ? '<i class="fas fa-users"></i>' : chat.avatar;
+            
+            // Set chat avatar
+            if (chat.avatar && chat.avatar.startsWith('http')) {
+                currentChatAvatar.style.backgroundImage = `url(${chat.avatar})`;
+                currentChatAvatar.textContent = '';
+            } else {
+                currentChatAvatar.style.backgroundImage = '';
+                currentChatAvatar.textContent = chat.isGroup ? 
+                    (chat.avatar === 'G' ? '<i class="fas fa-users"></i>' : chat.avatar) : 
+                    (chat.avatar || 'U');
+            }
             
             if (chat.isGroup) {
                 currentChatStatus.textContent = `${Object.keys(chat.members).length} members`;
@@ -1372,8 +1485,8 @@
                     if (chat && chat.members) {
                         Object.keys(chat.members).forEach(memberId => {
                             if (memberId !== currentUser.id) {
-                                updates[`chats/${currentChatId}/unreadCount/${memberId}`] = 
-                                    (chat.unreadCount && chat.unreadCount[memberId] || 0) + 1;
+                                const currentUnread = chat.unreadCount && chat.unreadCount[memberId] || 0;
+                                updates[`chats/${currentChatId}/unreadCount/${memberId}`] = currentUnread + 1;
                             }
                         });
                     }
