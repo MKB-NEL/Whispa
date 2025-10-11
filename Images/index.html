@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Whispa</title>
+  <link rel="icon" href="Images/logo.png" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Poppins", sans-serif;
+    }
+
+    body {
+      background-color: #000;
+      color: #fff;
+      overflow-x: hidden;
+    }
+
+    /* Header */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 80px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      z-index: 100;
+    }
+
+    header img {
+      height: 45px;
+    }
+
+    .download-btn {
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .download-btn:hover {
+      background-color: white;
+      color: black;
+    }
+
+    /* Hero Section */
+    .hero {
+      margin-top: 100px;
+      width: 90%;
+      max-width: 1200px;
+      margin-inline: auto;
+      border-radius: 25px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .slides {
+      display: flex;
+      width: 300%;
+      transition: transform 0.8s ease-in-out;
+    }
+
+    .slides img {
+      width: 100%;
+      height: 480px;
+      object-fit: cover;
+    }
+
+    .nav-circles {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+    }
+
+    .nav-circles div {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.5);
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .nav-circles div.active {
+      background: white;
+    }
+
+    /* Download Buttons */
+    .downloads {
+      text-align: center;
+      margin-top: 60px;
+    }
+
+    .downloads h2 {
+      font-size: 1.8rem;
+      margin-bottom: 25px;
+    }
+
+    .download-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .download-buttons button {
+      background: white;
+      color: black;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.3s;
+    }
+
+    .download-buttons button:hover {
+      background: #ddd;
+    }
+
+    /* Features Section */
+    .features {
+      width: 90%;
+      max-width: 1200px;
+      margin: 100px auto;
+    }
+
+    .features h2 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 60px;
+    }
+
+    .feature {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 60px;
+      flex-wrap: wrap;
+    }
+
+    .feature:nth-child(even) {
+      flex-direction: row-reverse;
+    }
+
+    .feature img {
+      width: 45%;
+      border-radius: 20px;
+    }
+
+    .feature .text {
+      width: 45%;
+      min-width: 300px;
+    }
+
+    .feature .text h3 {
+      font-size: 1.6rem;
+      margin-bottom: 10px;
+    }
+
+    .feature .text p {
+      color: #cbd5e1;
+      line-height: 1.6;
+    }
+
+    /* Updates */
+    .updates {
+      width: 90%;
+      max-width: 1200px;
+      margin: 100px auto;
+      text-align: center;
+    }
+
+    .updates h2 {
+      font-size: 2rem;
+      margin-bottom: 40px;
+    }
+
+    .update-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+
+    .update-gallery img {
+      width: 100%;
+      border-radius: 20px;
+      object-fit: cover;
+      height: 250px;
+    }
+
+    /* Footer */
+    footer {
+      background-color: #0a0a0a;
+      padding: 50px 10%;
+      margin-top: 100px;
+    }
+
+    .footer-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .footer-left img {
+      height: 40px;
+    }
+
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .footer-right .social i {
+      font-size: 1.4rem;
+      margin: 0 8px;
+      cursor: pointer;
+      transition: color 0.3s;
+    }
+
+    .footer-right .social i:hover {
+      color: #38bdf8;
+    }
+
+    .footer-download {
+      background: white;
+      color: black;
+      padding: 10px 22px;
+      border-radius: 30px;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .footer-download:hover {
+      background: #e5e7eb;
+    }
+
+    @media (max-width: 768px) {
+      header {
+        padding: 0 20px;
+      }
+
+      .feature {
+        flex-direction: column !important;
+      }
+
+      .feature img, .feature .text {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div></div>
+    <img src="https://i.ibb.co/PsGBFJLg/Logo-2.png" alt="Whispa Logo">
+    <div class="download-btn" title="Download">
+      <i class="fa-solid fa-download"></i>
+    </div>
+  </header>
+
+  <!-- HERO SECTION -->
+  <section class="hero">
+    <div class="slides">
+      <img src="Images/banner.jpg" alt="Banner 1">
+      <img src="Images/banner_1.jpg" alt="Banner 2">
+      <img src="Images/banner_2.jpg" alt="Banner 3">
+    </div>
+    <div class="nav-circles">
+      <div class="circle active" data-index="0"></div>
+      <div class="circle" data-index="1"></div>
+      <div class="circle" data-index="2"></div>
+    </div>
+  </section>
+
+  <!-- DOWNLOAD BUTTONS -->
+  <section class="downloads">
+    <h2>Download Whispa for your device</h2>
+    <div class="download-buttons">
+      <button><i class="fa-brands fa-windows"></i> Windows</button>
+      <button><i class="fa-brands fa-android"></i> Android</button>
+      <button><i class="fa-brands fa-apple"></i> iOS</button>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features">
+    <h2>Features of Whispa</h2>
+
+    <div class="feature">
+      <img src="Images/feature_1.jpg" alt="Feature 1">
+      <div class="text">
+        <h3>Private & Secure Messaging</h3>
+        <p>Whispa uses modern encryption to ensure your conversations stay private and personal. No trackers, no leaks, just peace of mind.</p>
+      </div>
+    </div>
+
+    <div class="feature">
+      <img src="Images/feature_2.jpg" alt="Feature 2">
+      <div class="text">
+        <h3>Media Sharing</h3>
+        <p>Send and receive photos, videos, and documents instantly. Whispa optimizes delivery speed while preserving quality.</p>
+      </div>
+    </div>
+
+    <div class="feature">
+      <img src="Images/feature_3.jpg" alt="Feature 3">
+      <div class="text">
+        <h3>Cross-Platform</h3>
+        <p>Whispa is available for desktop, web, and mobile. Stay connected from anywhere without losing sync.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- UPDATES -->
+  <section class="updates">
+    <h2>Latest Updates</h2>
+    <div class="update-gallery">
+      <img src="Images/update.jpg" alt="Update 1">
+      <img src="Images/update_1.jpg" alt="Update 2">
+      <img src="Images/update_2.jpg" alt="Update 3">
+      <img src="Images/update_3.jpg" alt="Update 4">
+      <img src="Images/update_4.jpg" alt="Update 5">
+      <img src="Images/update_5.jpg" alt="Update 6">
+      <img src="Images/update_6.jpg" alt="Update 7">
+      <img src="Images/update_7.jpg" alt="Update 8">
+      <img src="Images/update_8.jpg" alt="Update 9">
+      <img src="Images/update_9.jpg" alt="Update 10">
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-content">
+      <div class="footer-left">
+        <img src="https://i.ibb.co/PsGBFJLg/Logo-2.png" alt="Whispa Logo">
+      </div>
+      <div class="footer-right">
+        <button class="footer-download"><i class="fa-solid fa-download"></i> Download</button>
+        <div class="social">
+          <i class="fa-brands fa-facebook-f"></i>
+          <i class="fa-brands fa-x-twitter"></i>
+          <i class="fa-brands fa-instagram"></i>
+          <i class="fa-brands fa-github"></i>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Auto-scrolling hero banner
+    const slides = document.querySelector(".slides");
+    const circles = document.querySelectorAll(".nav-circles .circle");
+    let index = 0;
+
+    function changeSlide(i) {
+      slides.style.transform = `translateX(-${i * 100}%)`;
+      circles.forEach(c => c.classList.remove("active"));
+      circles[i].classList.add("active");
+      index = i;
+    }
+
+    circles.forEach(c => {
+      c.addEventListener("click", () => {
+        changeSlide(parseInt(c.dataset.index));
+      });
+    });
+
+    setInterval(() => {
+      index = (index + 1) % 3;
+      changeSlide(index);
+    }, 4000);
+  </script>
+</body>
+</html>
