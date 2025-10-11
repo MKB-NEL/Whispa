@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Whispa</title>
+  <title>Whispa - Private Messaging</title>
   <link rel="icon" href="Images/icon.png" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
@@ -215,6 +215,8 @@
       transition: all 0.3s ease;
       box-shadow: 0 8px 25px rgba(255, 255, 255, 0.15);
       font-size: 1.1em;
+      text-decoration: none;
+      border: none;
     }
 
     .download-btn:hover {
@@ -614,9 +616,15 @@
   <section class="downloads">
     <h2>Download Whispa for Your Device</h2>
     <div class="download-buttons">
-      <div class="download-btn"><i class="fab fa-windows"></i> Windows</div>
-      <div class="download-btn"><i class="fab fa-android"></i> Android</div>
-      <div class="download-btn"><i class="fab fa-apple"></i> iOS</div>
+      <a href="https://www.mediafire.com/file/whispa-windows-setup.exe/file" class="download-btn" target="_blank">
+        <i class="fab fa-windows"></i> Windows
+      </a>
+      <a href="https://www.mediafire.com/file/whispa-android.apk/file" class="download-btn" target="_blank">
+        <i class="fab fa-android"></i> Android
+      </a>
+      <a href="https://www.mediafire.com/file/whispa-ios.ipa/file" class="download-btn" target="_blank">
+        <i class="fab fa-apple"></i> iOS
+      </a>
     </div>
   </section>
 
@@ -668,10 +676,10 @@
     <h3>Whispa © 2025</h3>
     <p>All rights reserved | Designed by MWIZERWA K. Bertrand</p>
     <div class="social-icons">
-      <a href="https://www.linkedin.com/in/mwizerwa-k-bertrand-1a7b8233a"><i class="fab fa-facebook"></i></a>
-      <a href="https://x.com/mwizerwabe34779"><i class="fab fa-x-twitter"></i></a>
-      <a href="https://www.instagram.com/b3_rtrand/"><i class="fab fa-instagram"></i></a>
-      <a href="https://github.com/mkb-nel"><i class="fab fa-github"></i></a>
+      <a href="https://www.linkedin.com/in/mwizerwa-k-bertrand-1a7b8233a" target="_blank"><i class="fab fa-linkedin"></i></a>
+      <a href="https://x.com/mwizerwabe34779" target="_blank"><i class="fab fa-x-twitter"></i></a>
+      <a href="https://www.instagram.com/b3_rtrand/" target="_blank"><i class="fab fa-instagram"></i></a>
+      <a href="https://github.com/mkb-nel" target="_blank"><i class="fab fa-github"></i></a>
     </div>
   </footer>
 
@@ -761,6 +769,14 @@
         showNoUpdates();
       }
     }, 2000);
+
+    // Download icon functionality
+    document.querySelector('.download-icon').addEventListener('click', function() {
+      // Scroll to download section
+      document.querySelector('.downloads').scrollIntoView({ 
+        behavior: 'smooth' 
+      });
+    });
   </script>
 
 </body>
