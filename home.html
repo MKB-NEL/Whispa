@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Whispa - Messages</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <!-- Botpress AI Chat -->
+    <script src="https://cdn.botpress.cloud/webchat/v3.3/inject.js"></script>
+    <script src="https://files.bpcontent.cloud/2025/10/02/12/20251002125750-U28EOJI5.js" defer></script>
     <style>
         * {
             margin: 0;
@@ -29,10 +36,14 @@
         .sidebar {
             width: 30%;
             min-width: 300px;
+            max-width: 500px;
             background: #111111;
             border-right: 1px solid #333333;
             display: flex;
             flex-direction: column;
+            position: relative;
+            resize: horizontal;
+            overflow: auto;
         }
 
         .sidebar-header {
@@ -184,6 +195,7 @@
             font-weight: bold;
             color: white;
             margin-right: 12px;
+            position: relative;
         }
 
         .chat-info {
@@ -259,6 +271,7 @@
             justify-content: center;
             font-weight: bold;
             color: white;
+            position: relative;
         }
 
         .contact-info h3 {
@@ -491,11 +504,172 @@
             border: 2px solid #111111;
         }
 
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 24px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid #333333;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.3em;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #888888;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
+            background: #333333;
+            color: #ffffff;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            background: #2a2a2a;
+            border: 1px solid #333333;
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 0.9em;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #00a884;
+        }
+
+        .users-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+            border: 1px solid #333333;
+            border-radius: 8px;
+            padding: 8px;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .user-item:hover {
+            background: #2a2a2a;
+        }
+
+        .user-item.selected {
+            background: #005c4b;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #00a884;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            margin-right: 10px;
+        }
+
+        .user-name {
+            flex: 1;
+            font-size: 0.9em;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .btn-primary {
+            background: #00a884;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #008f70;
+        }
+
+        .btn-secondary {
+            background: #2a2a2a;
+            color: #ffffff;
+        }
+
+        .btn-secondary:hover {
+            background: #333333;
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .sidebar {
                 width: 100%;
                 min-width: auto;
+                max-width: none;
+                resize: none;
             }
             
             .chat-area {
@@ -530,12 +704,50 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #444444;
         }
+
+        /* Botpress Chat Widget */
+        #bp-web-widget {
+            position: fixed !important;
+            bottom: 20px !important;
+            right: 20px !important;
+            z-index: 1000 !important;
+        }
     </style>
 </head>
 <body>
     <!-- Notifications Container -->
     <div class="notifications-container" id="notificationsContainer">
         <!-- Notifications will be dynamically added here -->
+    </div>
+
+    <!-- Group Creation Modal -->
+    <div class="modal-overlay" id="groupModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Create New Group</h3>
+                <button class="modal-close" id="closeGroupModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Group Name</label>
+                <input type="text" class="form-input" id="groupName" placeholder="Enter group name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Group Logo URL (optional)</label>
+                <input type="text" class="form-input" id="groupLogo" placeholder="Enter logo URL">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Add Members</label>
+                <div class="users-list" id="usersList">
+                    <!-- Users will be dynamically added here -->
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="cancelGroup">Cancel</button>
+                <button class="btn btn-primary" id="createGroup">Create Group</button>
+            </div>
+        </div>
     </div>
 
     <div class="app-container">
@@ -558,10 +770,10 @@
                 <div class="chats-header">
                     <h2>Chats</h2>
                     <div class="header-actions">
-                        <button class="icon-btn" title="New Group">
+                        <button class="icon-btn" title="New Group" id="newGroupBtn">
                             <i class="fas fa-users"></i>
                         </button>
-                        <button class="icon-btn" title="Settings">
+                        <button class="icon-btn" title="Settings" id="settingsBtn">
                             <i class="fas fa-cog"></i>
                         </button>
                     </div>
@@ -626,82 +838,36 @@
     </div>
 
     <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC4R6MK7MGC6hW3XjK0XjXpVvVfVfVfVfV",
+            authDomain: "whispa-chat-app.firebaseapp.com",
+            databaseURL: "https://whispa-chat-app-default-rtdb.firebaseio.com",
+            projectId: "whispa-chat-app",
+            storageBucket: "whispa-chat-app.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const auth = firebase.auth();
+
         // Current user data
-        const currentUser = {
-            id: 'user1',
-            name: 'Bertrand',
-            avatar: 'B',
+        let currentUser = {
+            id: '',
+            name: '',
+            avatar: '',
             status: 'Online',
             lastSeen: new Date()
         };
 
-        // Sample chat data
-        const chats = [
-            {
-                id: 'chat1',
-                name: 'Alice Johnson',
-                avatar: 'A',
-                lastMessage: 'Hey! How are you doing?',
-                timestamp: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
-                unread: 2,
-                online: true,
-                messages: [
-                    { id: 'm1', text: 'Hello!', sender: 'chat1', timestamp: new Date(Date.now() - 10 * 60 * 1000) },
-                    { id: 'm2', text: 'How are you?', sender: 'chat1', timestamp: new Date(Date.now() - 9 * 60 * 1000) },
-                    { id: 'm3', text: 'I\'m good, thanks!', sender: 'user1', timestamp: new Date(Date.now() - 8 * 60 * 1000) },
-                    { id: 'm4', text: 'Hey! How are you doing?', sender: 'chat1', timestamp: new Date(Date.now() - 5 * 60 * 1000) }
-                ]
-            },
-            {
-                id: 'chat2',
-                name: 'Tech Group',
-                avatar: 'T',
-                lastMessage: 'Sarah: Meeting at 3 PM tomorrow',
-                timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-                unread: 0,
-                online: false,
-                isGroup: true,
-                messages: []
-            },
-            {
-                id: 'chat3',
-                name: 'David Wilson',
-                avatar: 'D',
-                lastMessage: 'See you later!',
-                timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
-                unread: 1,
-                online: true,
-                messages: []
-            }
-        ];
-
-        // Sample notifications
-        const notifications = [
-            {
-                id: 'notif1',
-                type: 'message',
-                title: 'New Message',
-                message: 'You have 3 unread messages',
-                icon: 'fas fa-comment',
-                timestamp: new Date()
-            },
-            {
-                id: 'notif2',
-                type: 'follower',
-                title: 'New Follower',
-                message: 'Alice Johnson started following you',
-                icon: 'fas fa-user-plus',
-                timestamp: new Date(Date.now() - 2 * 60 * 1000)
-            },
-            {
-                id: 'notif3',
-                type: 'update',
-                title: 'App Update',
-                message: 'New features available in Whispa v2.1',
-                icon: 'fas fa-sync',
-                timestamp: new Date(Date.now() - 5 * 60 * 1000)
-            }
-        ];
+        // Global variables
+        let chats = [];
+        let users = [];
+        let currentChatId = null;
+        let notifications = [];
 
         // DOM Elements
         const userAvatar = document.getElementById('userAvatar');
@@ -719,48 +885,172 @@
         const currentChatStatus = document.getElementById('currentChatStatus');
         const currentChatAvatar = document.getElementById('currentChatAvatar');
         const notificationsContainer = document.getElementById('notificationsContainer');
+        const newGroupBtn = document.getElementById('newGroupBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const groupModal = document.getElementById('groupModal');
+        const closeGroupModal = document.getElementById('closeGroupModal');
+        const cancelGroup = document.getElementById('cancelGroup');
+        const createGroup = document.getElementById('createGroup');
+        const usersList = document.getElementById('usersList');
+        const groupName = document.getElementById('groupName');
+        const groupLogo = document.getElementById('groupLogo');
 
         // Initialize the app
         function initApp() {
-            // Set current user info
-            userAvatar.textContent = currentUser.avatar;
-            userName.textContent = currentUser.name;
-            userStatus.textContent = currentUser.status;
-
-            // Load chats
-            renderChats();
-
-            // Show notifications
-            showNotifications();
-
+            // Set up authentication state observer
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    // User is signed in
+                    currentUser.id = user.uid;
+                    currentUser.name = user.displayName || 'User';
+                    currentUser.avatar = user.photoURL || currentUser.name.charAt(0);
+                    
+                    // Set current user info
+                    userAvatar.textContent = currentUser.avatar;
+                    userName.textContent = currentUser.name;
+                    
+                    // Update user status in database
+                    updateUserStatus('Online');
+                    
+                    // Load data from Firebase
+                    loadUsers();
+                    loadChats();
+                    listenForNotifications();
+                } else {
+                    // No user is signed in, redirect to login
+                    window.location.href = 'login.html';
+                }
+            });
+            
             // Set up event listeners
             setupEventListeners();
+            
+            // Check if on mobile device
+            if (window.innerWidth <= 768) {
+                window.location.href = 'home2.html';
+            }
+        }
+
+        // Update user status in Firebase
+        function updateUserStatus(status) {
+            if (!currentUser.id) return;
+            
+            const updates = {};
+            updates[`users/${currentUser.id}/status`] = status;
+            updates[`users/${currentUser.id}/lastSeen`] = firebase.database.ServerValue.TIMESTAMP;
+            
+            database.ref().update(updates);
+        }
+
+        // Load users from Firebase
+        function loadUsers() {
+            database.ref('users').on('value', (snapshot) => {
+                users = [];
+                snapshot.forEach((childSnapshot) => {
+                    const user = childSnapshot.val();
+                    user.id = childSnapshot.key;
+                    if (user.id !== currentUser.id) {
+                        users.push(user);
+                    }
+                });
+                
+                // Update users list in group modal
+                updateUsersList();
+            });
+        }
+
+        // Load chats from Firebase
+        function loadChats() {
+            database.ref('chats').orderByChild('lastActivity').on('value', (snapshot) => {
+                chats = [];
+                snapshot.forEach((childSnapshot) => {
+                    const chat = childSnapshot.val();
+                    chat.id = childSnapshot.key;
+                    
+                    // Check if current user is a member of this chat
+                    if (chat.members && chat.members[currentUser.id]) {
+                        chats.push(chat);
+                    }
+                });
+                
+                // Sort chats by last activity (newest first)
+                chats.sort((a, b) => b.lastActivity - a.lastActivity);
+                
+                // Render chats
+                renderChats();
+            });
+        }
+
+        // Listen for notifications
+        function listenForNotifications() {
+            database.ref(`notifications/${currentUser.id}`).on('child_added', (snapshot) => {
+                const notification = snapshot.val();
+                notification.id = snapshot.key;
+                
+                // Show notification
+                showNotification(notification);
+                
+                // Remove notification after showing
+                database.ref(`notifications/${currentUser.id}/${snapshot.key}`).remove();
+            });
+        }
+
+        // Update users list in group modal
+        function updateUsersList() {
+            usersList.innerHTML = '';
+            
+            users.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.setAttribute('data-user-id', user.id);
+                
+                userItem.innerHTML = `
+                    <div class="user-avatar">${user.avatar}</div>
+                    <div class="user-name">${user.name}</div>
+                    <input type="checkbox" class="user-checkbox" style="display: none;">
+                `;
+                
+                userItem.addEventListener('click', () => {
+                    userItem.classList.toggle('selected');
+                });
+                
+                usersList.appendChild(userItem);
+            });
         }
 
         // Render chats list
         function renderChats() {
             chatsList.innerHTML = '';
             
+            if (chats.length === 0) {
+                chatsList.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">No chats yet. Start a conversation!</div>';
+                return;
+            }
+            
             chats.forEach(chat => {
                 const chatItem = document.createElement('div');
                 chatItem.className = 'chat-item';
+                if (chat.id === currentChatId) {
+                    chatItem.classList.add('active');
+                }
                 chatItem.setAttribute('data-chat-id', chat.id);
                 
-                const timeString = formatTime(chat.timestamp);
+                const timeString = formatTime(chat.lastActivity);
+                const unreadCount = chat.unreadCount && chat.unreadCount[currentUser.id] ? chat.unreadCount[currentUser.id] : 0;
                 
                 chatItem.innerHTML = `
                     <div class="chat-avatar">
-                        ${chat.avatar}
-                        ${chat.online ? '<div class="online-status"></div>' : ''}
+                        ${chat.isGroup ? '<i class="fas fa-users"></i>' : chat.avatar}
+                        ${!chat.isGroup && chat.online ? '<div class="online-status"></div>' : ''}
                     </div>
                     <div class="chat-info">
                         <div class="chat-header">
                             <span class="chat-name">${chat.name}</span>
                             <span class="chat-time">${timeString}</span>
                         </div>
-                        <div class="last-message">${chat.lastMessage}</div>
+                        <div class="last-message">${chat.lastMessage || 'Start a conversation'}</div>
                     </div>
-                    ${chat.unread > 0 ? `<div class="unread-badge">${chat.unread}</div>` : ''}
+                    ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
                 `;
                 
                 chatsList.appendChild(chatItem);
@@ -768,7 +1058,10 @@
         }
 
         // Format time for display
-        function formatTime(date) {
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            
+            const date = new Date(timestamp);
             const now = new Date();
             const diff = now - date;
             
@@ -784,50 +1077,33 @@
             }
         }
 
-        // Show notifications with auto-remove
-        function showNotifications() {
-            let currentIndex = 0;
+        // Show notification
+        function showNotification(notification) {
+            const notificationElement = document.createElement('div');
+            notificationElement.className = 'notification';
+            notificationElement.setAttribute('data-notification-id', notification.id);
             
-            function showNextNotification() {
-                if (currentIndex >= notifications.length) return;
-                
-                const notification = notifications[currentIndex];
-                const notificationElement = document.createElement('div');
-                notificationElement.className = 'notification';
-                notificationElement.setAttribute('data-notification-id', notification.id);
-                
-                notificationElement.innerHTML = `
-                    <div class="notification-content">
-                        <div class="notification-icon">
-                            <i class="${notification.icon}"></i>
-                        </div>
-                        <div class="notification-text">
-                            <div class="notification-title">${notification.title}</div>
-                            <div class="notification-message">${notification.message}</div>
-                        </div>
+            notificationElement.innerHTML = `
+                <div class="notification-content">
+                    <div class="notification-icon">
+                        <i class="${notification.icon || 'fas fa-bell'}"></i>
                     </div>
-                    <button class="notification-close" onclick="removeNotification('${notification.id}')">
-                        <i class="fas fa-times"></i>
-                    </button>
-                `;
-                
-                notificationsContainer.appendChild(notificationElement);
-                
-                // Auto-remove after 8 seconds
-                setTimeout(() => {
-                    removeNotification(notification.id);
-                }, 8000);
-                
-                currentIndex++;
-                
-                // Show next notification after delay
-                if (currentIndex < notifications.length) {
-                    setTimeout(showNextNotification, 8000);
-                }
-            }
+                    <div class="notification-text">
+                        <div class="notification-title">${notification.title}</div>
+                        <div class="notification-message">${notification.message}</div>
+                    </div>
+                </div>
+                <button class="notification-close" onclick="removeNotification('${notification.id}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
             
-            // Start showing notifications
-            showNextNotification();
+            notificationsContainer.appendChild(notificationElement);
+            
+            // Auto-remove after 8 seconds
+            setTimeout(() => {
+                removeNotification(notification.id);
+            }, 8000);
         }
 
         // Remove notification by ID
@@ -884,12 +1160,120 @@
                 this.style.height = 'auto';
                 this.style.height = Math.min(this.scrollHeight, 100) + 'px';
             });
+
+            // Group creation
+            newGroupBtn.addEventListener('click', () => {
+                groupModal.style.display = 'flex';
+            });
+
+            // Close group modal
+            closeGroupModal.addEventListener('click', () => {
+                groupModal.style.display = 'none';
+                resetGroupForm();
+            });
+
+            cancelGroup.addEventListener('click', () => {
+                groupModal.style.display = 'none';
+                resetGroupForm();
+            });
+
+            // Create group
+            createGroup.addEventListener('click', createNewGroup);
+
+            // Settings button
+            settingsBtn.addEventListener('click', () => {
+                window.location.href = 'settings.html';
+            });
+
+            // Update user status when leaving the page
+            window.addEventListener('beforeunload', () => {
+                updateUserStatus('Offline');
+            });
+        }
+
+        // Reset group form
+        function resetGroupForm() {
+            groupName.value = '';
+            groupLogo.value = '';
+            const selectedUsers = usersList.querySelectorAll('.selected');
+            selectedUsers.forEach(user => user.classList.remove('selected'));
+        }
+
+        // Create new group
+        function createNewGroup() {
+            const name = groupName.value.trim();
+            if (!name) {
+                alert('Please enter a group name');
+                return;
+            }
+
+            const logo = groupLogo.value.trim();
+            const selectedUsers = usersList.querySelectorAll('.selected');
+            
+            if (selectedUsers.length === 0) {
+                alert('Please select at least one member');
+                return;
+            }
+
+            // Create group object
+            const groupId = database.ref().child('chats').push().key;
+            const members = {
+                [currentUser.id]: true
+            };
+
+            selectedUsers.forEach(userItem => {
+                const userId = userItem.getAttribute('data-user-id');
+                members[userId] = true;
+            });
+
+            const groupData = {
+                id: groupId,
+                name: name,
+                avatar: logo || 'G',
+                isGroup: true,
+                members: members,
+                createdBy: currentUser.id,
+                createdAt: firebase.database.ServerValue.TIMESTAMP,
+                lastActivity: firebase.database.ServerValue.TIMESTAMP,
+                lastMessage: `${currentUser.name} created the group`
+            };
+
+            // Save group to Firebase
+            database.ref(`chats/${groupId}`).set(groupData)
+                .then(() => {
+                    // Send notifications to selected users
+                    selectedUsers.forEach(userItem => {
+                        const userId = userItem.getAttribute('data-user-id');
+                        const notification = {
+                            type: 'group_invite',
+                            title: 'Group Invitation',
+                            message: `${currentUser.name} added you to the group "${name}"`,
+                            icon: 'fas fa-users',
+                            timestamp: firebase.database.ServerValue.TIMESTAMP
+                        };
+                        
+                        database.ref(`notifications/${userId}`).push(notification);
+                    });
+
+                    // Close modal and reset form
+                    groupModal.style.display = 'none';
+                    resetGroupForm();
+                    
+                    // Open the new group chat
+                    openChat(groupId);
+                })
+                .catch((error) => {
+                    console.error('Error creating group:', error);
+                    alert('Error creating group. Please try again.');
+                });
         }
 
         // Open chat
         function openChat(chatId) {
             const chat = chats.find(c => c.id === chatId);
             if (!chat) return;
+
+            currentChatId = chatId;
 
             // Update UI
             emptyChat.style.display = 'none';
@@ -898,84 +1282,113 @@
 
             // Update chat header
             currentChatName.textContent = chat.name;
-            currentChatStatus.textContent = chat.online ? 'Online' : 'Last seen ' + formatTime(chat.timestamp);
-            currentChatAvatar.textContent = chat.avatar;
+            currentChatAvatar.textContent = chat.isGroup ? '<i class="fas fa-users"></i>' : chat.avatar;
+            
+            if (chat.isGroup) {
+                currentChatStatus.textContent = `${Object.keys(chat.members).length} members`;
+            } else {
+                // For individual chats, show online status
+                const otherUserId = Object.keys(chat.members).find(id => id !== currentUser.id);
+                if (otherUserId) {
+                    database.ref(`users/${otherUserId}/status`).once('value', (snapshot) => {
+                        const status = snapshot.val();
+                        currentChatStatus.textContent = status === 'Online' ? 'Online' : 
+                            `Last seen ${formatTime(chat.lastActivity)}`;
+                    });
+                }
+            }
 
             // Load messages
-            loadMessages(chat.messages);
+            loadMessages(chatId);
 
             // Mark as read
-            chat.unread = 0;
+            markChatAsRead(chatId);
+
+            // Re-render chats to update active state
             renderChats();
         }
 
-        // Load messages into chat
-        function loadMessages(messages) {
+        // Load messages for a chat
+        function loadMessages(chatId) {
             messagesContainer.innerHTML = '';
             
-            messages.forEach(message => {
-                const messageElement = document.createElement('div');
-                messageElement.className = `message ${message.sender === currentUser.id ? 'sent' : 'received'}`;
+            database.ref(`messages/${chatId}`).orderByChild('timestamp').on('value', (snapshot) => {
+                messagesContainer.innerHTML = '';
                 
-                const timeString = formatTime(message.timestamp);
+                snapshot.forEach((childSnapshot) => {
+                    const message = childSnapshot.val();
+                    message.id = childSnapshot.key;
+                    
+                    const messageElement = document.createElement('div');
+                    messageElement.className = `message ${message.senderId === currentUser.id ? 'sent' : 'received'}`;
+                    
+                    const timeString = formatTime(message.timestamp);
+                    
+                    messageElement.innerHTML = `
+                        <div class="message-text">${message.text}</div>
+                        <div class="message-time">${timeString}</div>
+                    `;
+                    
+                    messagesContainer.appendChild(messageElement);
+                });
                 
-                messageElement.innerHTML = `
-                    <div class="message-text">${message.text}</div>
-                    <div class="message-time">${timeString}</div>
-                `;
-                
-                messagesContainer.appendChild(messageElement);
+                // Scroll to bottom
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
             });
-            
-            // Scroll to bottom
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Mark chat as read
+        function markChatAsRead(chatId) {
+            const updates = {};
+            updates[`chats/${chatId}/unreadCount/${currentUser.id}`] = 0;
+            database.ref().update(updates);
         }
 
         // Send message
         function sendMessage() {
             const text = messageInput.value.trim();
-            if (!text) return;
+            if (!text || !currentChatId) return;
 
             // Create new message
+            const messageId = database.ref().child('messages').child(currentChatId).push().key;
             const newMessage = {
-                id: 'm' + Date.now(),
+                id: messageId,
                 text: text,
-                sender: currentUser.id,
-                timestamp: new Date()
+                senderId: currentUser.id,
+                senderName: currentUser.name,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
             };
 
-            // Add to current chat (in a real app, this would be sent to server)
-            const activeChat = chats[0]; // For demo, always add to first chat
-            activeChat.messages.push(newMessage);
-            activeChat.lastMessage = text;
-            activeChat.timestamp = new Date();
-            activeChat.unread = 0;
-
-            // Update UI
-            loadMessages(activeChat.messages);
-            renderChats();
-
-            // Clear input
-            messageInput.value = '';
-            messageInput.style.height = 'auto';
-
-            // Simulate reply (in a real app, this would come from server)
-            setTimeout(() => {
-                const replyMessage = {
-                    id: 'm' + Date.now(),
-                    text: 'Thanks for your message!',
-                    sender: activeChat.id,
-                    timestamp: new Date()
-                };
-                
-                activeChat.messages.push(replyMessage);
-                activeChat.lastMessage = replyMessage.text;
-                activeChat.timestamp = new Date();
-                activeChat.unread = (activeChat.unread || 0) + 1;
-                
-                loadMessages(activeChat.messages);
-                renderChats();
-            }, 1000);
+            // Save message to Firebase
+            database.ref(`messages/${currentChatId}/${messageId}`).set(newMessage)
+                .then(() => {
+                    // Update chat last message and activity
+                    const updates = {};
+                    updates[`chats/${currentChatId}/lastMessage`] = text;
+                    updates[`chats/${currentChatId}/lastActivity`] = firebase.database.ServerValue.TIMESTAMP;
+                    
+                    // Increment unread count for other members
+                    const chat = chats.find(c => c.id === currentChatId);
+                    if (chat && chat.members) {
+                        Object.keys(chat.members).forEach(memberId => {
+                            if (memberId !== currentUser.id) {
+                                updates[`chats/${currentChatId}/unreadCount/${memberId}`] = 
+                                    (chat.unreadCount && chat.unreadCount[memberId] || 0) + 1;
+                            }
+                        });
+                    }
+                    
+                    return database.ref().update(updates);
+                })
+                .then(() => {
+                    // Clear input
+                    messageInput.value = '';
+                    messageInput.style.height = 'auto';
+                })
+                .catch((error) => {
+                    console.error('Error sending message:', error);
+                    alert('Error sending message. Please try again.');
+                });
         }
 
         // Initialize the app when DOM is loaded
