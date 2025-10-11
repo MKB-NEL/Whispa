@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whispa - Secure Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        }
+
+        body {
+            background: #000000;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 320px;
+            background: #000000;
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo-section img {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 12px;
+            border-radius: 14px;
+        }
+
+        .logo-section h1 {
+            font-size: 1.6em;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.3px;
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 24px;
+            background: #111111;
+            border-radius: 8px;
+            padding: 2px;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 8px 10px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 0.82em;
+            color: #888888;
+        }
+
+        .auth-tab.active {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .auth-form {
+            display: none;
+        }
+
+        .auth-form.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-step {
+            display: none;
+        }
+
+        .form-step.active {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .form-title {
+            font-size: 1.3em;
+            margin-bottom: 4px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .form-subtitle {
+            color: #888888;
+            margin-bottom: 20px;
+            font-size: 0.85em;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 600;
+            color: #ffffff;
+            font-size: 0.8em;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            background: #111111;
+            border: 1px solid #333333;
+            border-radius: 6px;
+            color: #ffffff;
+            font-size: 0.85em;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #ffffff;
+            background: #1a1a1a;
+        }
+
+        .form-input::placeholder {
+            color: #666666;
+        }
+
+        .phone-input-group {
+            display: flex;
+            gap: 6px;
+        }
+
+        .country-code {
+            flex: 0 0 80px;
+            font-size: 0.8em;
+            padding: 10px 8px;
+        }
+
+        .phone-number {
+            flex: 1;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            background: #111111;
+            border: 1px dashed #333333;
+            border-radius: 6px;
+            color: #888888;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: 0.8em;
+        }
+
+        .file-input-label:hover {
+            border-color: #ffffff;
+            color: #ffffff;
+        }
+
+        .profile-preview {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 8px auto;
+            display: block;
+            border: 1px solid #ffffff;
+            display: none;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            min-height: 38px;
+        }
+
+        .btn-primary {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .btn-primary:hover {
+            background: #e8e8e8;
+            transform: scale(1.02);
+        }
+
+        .btn-secondary {
+            background: #111111;
+            color: #ffffff;
+            border: 1px solid #333333;
+        }
+
+        .btn-secondary:hover {
+            background: #1a1a1a;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .error-message {
+            color: #ff453a;
+            font-size: 0.75em;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .success-message {
+            color: #30d158;
+            font-size: 0.75em;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 1.5px;
+            background: #333333;
+            border-radius: 1px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background: #ffffff;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-bottom: 16px;
+        }
+
+        .step-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: #333333;
+            transition: all 0.3s ease;
+        }
+
+        .step-dot.active {
+            background: #ffffff;
+            transform: scale(1.2);
+        }
+
+        .loader {
+            width: 12px;
+            height: 12px;
+            border: 1.5px solid transparent;
+            border-top: 1.5px solid #000000;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading .loader {
+            display: inline-block;
+        }
+
+        .loading .btn-text {
+            display: none;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 16px;
+            font-size: 0.8em;
+            color: #888888;
+        }
+
+        .remember-me input {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Enhanced Loading States */
+        .form-loading {
+            position: relative;
+        }
+
+        .form-loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            border-radius: 6px;
+        }
+
+        .form-loading.active::after {
+            display: block;
+        }
+
+        .loading-spinner {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333333;
+            border-top: 3px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+            z-index: 1000;
+        }
+
+        .loading-spinner.active {
+            display: block;
+        }
+
+        /* Mobile Optimizations */
+        @media (max-width: 480px) {
+            body {
+                padding: 12px;
+                align-items: flex-start;
+                padding-top: 40px;
+            }
+
+            .auth-container {
+                max-width: 100%;
+            }
+            
+            .logo-section {
+                margin-bottom: 28px;
+            }
+            
+            .logo-section img {
+                width: 55px;
+                height: 55px;
+            }
+            
+            .logo-section h1 {
+                font-size: 1.5em;
+            }
+            
+            .form-title {
+                font-size: 1.2em;
+            }
+            
+            .phone-input-group {
+                flex-direction: column;
+            }
+            
+            .country-code {
+                flex: 1;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                min-height: 42px;
+                font-size: 0.9em;
+            }
+        }
+
+        @media (max-width: 320px) {
+            .auth-container {
+                max-width: 280px;
+            }
+            
+            .logo-section img {
+                width: 50px;
+                height: 50px;
+            }
+            
+            .logo-section h1 {
+                font-size: 1.4em;
+            }
+            
+            .form-title {
+                font-size: 1.1em;
+            }
+        }
+
+        /* Touch-friendly improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .btn {
+                min-height: 44px;
+            }
+            
+            .form-input {
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+            
+            .auth-tab {
+                padding: 10px 12px;
+            }
+        }
+
+        /* Reduced motion for accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Global Loading Spinner -->
+    <div class="loading-spinner" id="globalSpinner"></div>
+
+    <div class="auth-container">
+        <!-- Logo Section -->
+        <div class="logo-section">
+            <img src="https://i.ibb.co/zVkw45Kc/Whispa-1-removebg-preview.png" alt="Whispa">
+            <h1>Whispa</h1>
+        </div>
+
+        <!-- Tabs -->
+        <div class="auth-tabs">
+            <div class="auth-tab active" data-tab="login">Login</div>
+            <div class="auth-tab" data-tab="signup">Sign Up</div>
+        </div>
+
+        <!-- Login Form -->
+        <div class="auth-form active" id="login-form">
+            <h2 class="form-title">Welcome Back</h2>
+            <p class="form-subtitle">Sign in to your account</p>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label" for="loginPhone">Phone Number</label>
+                    <div class="phone-input-group">
+                        <select class="form-input country-code" id="loginCountry">
+                            <option value="+250">RW +250</option>
+                            <option value="+257">BI +257</option>
+                            <option value="+233">GH +233</option>
+                            <option value="+1">US +1</option>
+                            <option value="+7">RU +7</option>
+                            <option value="+33">FR +33</option>
+                            <option value="+243">CD +243</option>
+                            <option value="+254">KE +254</option>
+                            <option value="+255">TZ +255</option>
+                            <option value="+49">DE +49</option>
+                            <option value="+1">CA +1</option>
+                            <option value="+213">DZ +213</option>
+                            <option value="+27">ZA +27</option>
+                            <option value="+234">NG +234</option>
+                        </select>
+                        <input type="tel" class="form-input phone-number" id="loginPhone" placeholder="Phone number" required>
+                    </div>
+                    <div class="error-message" id="loginPhoneError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="loginPassword">Password</label>
+                    <input type="password" class="form-input" id="loginPassword" placeholder="Enter your password" required>
+                    <div class="error-message" id="loginPasswordError"></div>
+                </div>
+
+                <div class="remember-me">
+                    <input type="checkbox" id="rememberMe">
+                    <label for="rememberMe">Keep me signed in</label>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="loginBtn">
+                        <div class="loader"></div>
+                        <span class="btn-text">Sign In</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Signup Form -->
+        <div class="auth-form" id="signup-form">
+            <h2 class="form-title">Create Account</h2>
+            <p class="form-subtitle">Join Whispa today</p>
+            
+            <!-- Step Indicator -->
+            <div class="step-indicator">
+                <div class="step-dot active" data-step="1"></div>
+                <div class="step-dot" data-step="2"></div>
+                <div class="step-dot" data-step="3"></div>
+                <div class="step-dot" data-step="4"></div>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="progress-bar">
+                <div class="progress" id="signupProgress"></div>
+            </div>
+            
+            <form id="signupForm">
+                <!-- Step 1: Country and Phone -->
+                <div class="form-step active" data-step="1">
+                    <div class="form-group">
+                        <label class="form-label" for="signupCountry">Country</label>
+                        <select class="form-input" id="signupCountry" required>
+                            <option value="">Select your country</option>
+                            <option value="+250">Rwanda (+250)</option>
+                            <option value="+257">Burundi (+257)</option>
+                            <option value="+233">Ghana (+233)</option>
+                            <option value="+1">USA (+1)</option>
+                            <option value="+7">Russia (+7)</option>
+                            <option value="+33">France (+33)</option>
+                            <option value="+243">DRC (+243)</option>
+                            <option value="+254">Kenya (+254)</option>
+                            <option value="+255">Tanzania (+255)</option>
+                            <option value="+49">Germany (+49)</option>
+                            <option value="+1">Canada (+1)</option>
+                            <option value="+213">Algeria (+213)</option>
+                            <option value="+27">South Africa (+27)</option>
+                            <option value="+234">Nigeria (+234)</option>
+                        </select>
+                        <div class="error-message" id="countryError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="signupPhone">Phone Number</label>
+                        <input type="tel" class="form-input" id="signupPhone" placeholder="Phone number" required>
+                        <div class="error-message" id="phoneError"></div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-primary next-step" data-next="2">
+                            <span class="btn-text">Continue</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Date of Birth -->
+                <div class="form-step" data-step="2">
+                    <div class="form-group">
+                        <label class="form-label" for="birthDate">Date of Birth</label>
+                        <input type="date" class="form-input" id="birthDate" required>
+                        <div class="error-message" id="birthDateError"></div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary prev-step" data-prev="1">
+                            <span class="btn-text">Back</span>
+                        </button>
+                        <button type="button" class="btn btn-primary next-step" data-next="3">
+                            <span class="btn-text">Continue</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Profile Image -->
+                <div class="form-step" data-step="3">
+                    <div class="form-group">
+                        <label class="form-label">Profile Image (Optional)</label>
+                        <div class="file-input-wrapper">
+                            <input type="file" class="file-input" id="profileImage" accept="image/*">
+                            <label for="profileImage" class="file-input-label">
+                                <i class="fas fa-cloud-upload-alt"></i> &nbsp; Choose Image
+                            </label>
+                        </div>
+                        <img id="profilePreview" class="profile-preview" alt="Profile Preview">
+                        <div class="error-message" id="imageError"></div>
+                        <div class="success-message" id="imageSuccess">Image uploaded</div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary prev-step" data-prev="2">
+                            <span class="btn-text">Back</span>
+                        </button>
+                        <button type="button" class="btn btn-primary next-step" data-next="4">
+                            <span class="btn-text">Continue</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 4: Username and Password -->
+                <div class="form-step" data-step="4">
+                    <div class="form-group">
+                        <label class="form-label" for="username">Username</label>
+                        <input type="text" class="form-input" id="username" placeholder="Choose a username" required>
+                        <div class="error-message" id="usernameError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="signupPassword">Password</label>
+                        <input type="password" class="form-input" id="signupPassword" placeholder="Create a password" required>
+                        <div class="error-message" id="passwordError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="confirmPassword">Confirm Password</label>
+                        <input type="password" class="form-input" id="confirmPassword" placeholder="Confirm password" required>
+                        <div class="error-message" id="confirmPasswordError"></div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary prev-step" data-prev="3">
+                            <span class="btn-text">Back</span>
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="signupBtn">
+                            <div class="loader"></div>
+                            <span class="btn-text">Create Account</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module" id="firebase-script">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-analytics.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDLggigD7p7_-1amZKi91MVCZbLNnsQ6JE",
+            authDomain: "whispa-d453f.firebaseapp.com",
+            databaseURL: "https://whispa-d453f-default-rtdb.firebaseio.com",
+            projectId: "whispa-d453f",
+            storageBucket: "whispa-d453f.firebasestorage.app",
+            messagingSenderId: "315118383529",
+            appId: "1:315118383529:web:ba8e05067077333e8a14b8",
+            measurementId: "G-TWJY3MSC46"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        window.whispaAuth = {
+            auth: auth,
+            db: db,
+            createUserWithEmailAndPassword: createUserWithEmailAndPassword,
+            signInWithEmailAndPassword: signInWithEmailAndPassword,
+            onAuthStateChanged: onAuthStateChanged,
+            setDoc: setDoc,
+            doc: doc
+        };
+    </script>
+
+    <script>
+        (function() {
+            'use strict';
+            
+            const authTabs = document.querySelectorAll('.auth-tab');
+            const authForms = document.querySelectorAll('.auth-form');
+            const loginForm = document.getElementById('loginForm');
+            const signupForm = document.getElementById('signupForm');
+            const formSteps = document.querySelectorAll('.form-step');
+            const stepDots = document.querySelectorAll('.step-dot');
+            const progressBar = document.getElementById('signupProgress');
+            const profileImageInput = document.getElementById('profileImage');
+            const profilePreview = document.getElementById('profilePreview');
+            const rememberMeCheckbox = document.getElementById('rememberMe');
+            const globalSpinner = document.getElementById('globalSpinner');
+            
+            // Enhanced loading functions
+            function showGlobalLoading() {
+                if (globalSpinner) {
+                    globalSpinner.classList.add('active');
+                    document.body.style.pointerEvents = 'none';
+                }
+            }
+
+            function hideGlobalLoading() {
+                if (globalSpinner) {
+                    globalSpinner.classList.remove('active');
+                    document.body.style.pointerEvents = 'auto';
+                }
+            }
+
+            function showStepLoading(stepElement) {
+                if (stepElement) {
+                    stepElement.classList.add('form-loading', 'active');
+                }
+            }
+
+            function hideStepLoading(stepElement) {
+                if (stepElement) {
+                    stepElement.classList.remove('form-loading', 'active');
+                }
+            }
+
+            // Check for stored credentials and auto-login
+            function checkAutoLogin() {
+                const storedCredentials = localStorage.getItem('whispa_credentials');
+                if (storedCredentials) {
+                    showGlobalLoading();
+                    const { email, password } = JSON.parse(storedCredentials);
+                    
+                    setTimeout(() => {
+                        if (window.whispaAuth && window.whispaAuth.signInWithEmailAndPassword) {
+                            window.whispaAuth.signInWithEmailAndPassword(window.whispaAuth.auth, email, password)
+                                .then(() => {
+                                    window.location.href = 'home.html';
+                                })
+                                .catch((error) => {
+                                    console.log('Auto-login failed:', error);
+                                    localStorage.removeItem('whispa_credentials');
+                                    hideGlobalLoading();
+                                });
+                        } else {
+                            hideGlobalLoading();
+                        }
+                    }, 1000);
+                }
+            }
+            
+            function storeCredentials(email, password) {
+                if (rememberMeCheckbox && rememberMeCheckbox.checked) {
+                    localStorage.setItem('whispa_credentials', JSON.stringify({ email, password }));
+                }
+            }
+            
+            // Tab Switching
+            authTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabId = tab.getAttribute('data-tab');
+                    
+                    authTabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    authForms.forEach(form => {
+                        form.classList.remove('active');
+                        if (form.id === `${tabId}-form`) {
+                            form.classList.add('active');
+                        }
+                    });
+                    
+                    if (tabId === 'signup') {
+                        resetSignupForm();
+                    }
+                });
+            });
+
+            // Enhanced step navigation with loading
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('next-step')) {
+                    const nextStep = parseInt(e.target.getAttribute('data-next'));
+                    const currentStepElement = document.querySelector('.form-step.active');
+                    
+                    showStepLoading(currentStepElement);
+                    
+                    setTimeout(() => {
+                        if (validateStep(nextStep - 1)) {
+                            navigateToStep(nextStep);
+                        }
+                        hideStepLoading(currentStepElement);
+                    }, 300);
+                }
+                
+                if (e.target.classList.contains('prev-step')) {
+                    const prevStep = parseInt(e.target.getAttribute('data-prev'));
+                    navigateToStep(prevStep);
+                }
+            });
+
+            function navigateToStep(step) {
+                formSteps.forEach(s => s.classList.remove('active'));
+                stepDots.forEach(d => d.classList.remove('active'));
+                
+                const targetStep = document.querySelector(`.form-step[data-step="${step}"]`);
+                const targetDot = document.querySelector(`.step-dot[data-step="${step}"]`);
+                
+                if (targetStep) targetStep.classList.add('active');
+                if (targetDot) targetDot.classList.add('active');
+                
+                const progress = ((step - 1) / 3) * 100;
+                if (progressBar) progressBar.style.width = `${progress}%`;
+            }
+
+            function validateStep(step) {
+                let isValid = true;
+                
+                switch(step) {
+                    case 1:
+                        const country = document.getElementById('signupCountry');
+                        const phone = document.getElementById('signupPhone');
+                        
+                        if (!country || !country.value) {
+                            showError('countryError', 'Please select your country');
+                            isValid = false;
+                        } else {
+                            hideError('countryError');
+                        }
+                        
+                        if (!phone || !phone.value || phone.value.length < 5) {
+                            showError('phoneError', 'Please enter a valid phone number');
+                            isValid = false;
+                        } else {
+                            hideError('phoneError');
+                        }
+                        break;
+                        
+                    case 2:
+                        const birthDate = document.getElementById('birthDate');
+                        
+                        if (!birthDate || !birthDate.value) {
+                            showError('birthDateError', 'Please enter your date of birth');
+                            isValid = false;
+                        } else {
+                            const today = new Date();
+                            const birthDateObj = new Date(birthDate.value);
+                            const age = today.getFullYear() - birthDateObj.getFullYear();
+                            
+                            if (age < 13) {
+                                showError('birthDateError', 'You must be at least 13 years old');
+                                isValid = false;
+                            } else {
+                                hideError('birthDateError');
+                            }
+                        }
+                        break;
+                        
+                    case 4:
+                        const username = document.getElementById('username');
+                        const password = document.getElementById('signupPassword');
+                        const confirmPassword = document.getElementById('confirmPassword');
+                        
+                        if (!username || !username.value || username.value.length < 3) {
+                            showError('usernameError', 'Username must be at least 3 characters');
+                            isValid = false;
+                        } else {
+                            hideError('usernameError');
+                        }
+                        
+                        if (!password || !password.value || password.value.length < 6) {
+                            showError('passwordError', 'Password must be at least 6 characters');
+                            isValid = false;
+                        } else {
+                            hideError('passwordError');
+                        }
+                        
+                        if (!confirmPassword || password.value !== confirmPassword.value) {
+                            showError('confirmPasswordError', 'Passwords do not match');
+                            isValid = false;
+                        } else {
+                            hideError('confirmPasswordError');
+                        }
+                        break;
+                }
+                
+                return isValid;
+            }
+
+            if (profileImageInput) {
+                profileImageInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        if (file.size > 5 * 1024 * 1024) {
+                            showError('imageError', 'Image size must be less than 5MB');
+                            return;
+                        }
+                        
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            if (profilePreview) {
+                                profilePreview.src = e.target.result;
+                                profilePreview.style.display = 'block';
+                            }
+                            hideError('imageError');
+                            showSuccess('imageSuccess');
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+
+            if (loginForm) {
+                loginForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const loginBtn = document.getElementById('loginBtn');
+                    const countryCode = document.getElementById('loginCountry');
+                    const phone = document.getElementById('loginPhone');
+                    const password = document.getElementById('loginPassword');
+                    
+                    if (!phone || !phone.value || !password || !password.value) {
+                        showError('loginPhoneError', 'Please fill in all fields');
+                        return;
+                    }
+                    
+                    const email = `${countryCode.value}${phone.value}@gmail.com`;
+                    
+                    setLoading(loginBtn, true);
+                    showGlobalLoading();
+                    
+                    try {
+                        const userCredential = await window.whispaAuth.signInWithEmailAndPassword(
+                            window.whispaAuth.auth, 
+                            email, 
+                            password.value
+                        );
+                        
+                        storeCredentials(email, password.value);
+                        window.location.href = 'home.html';
+                        
+                    } catch (error) {
+                        setLoading(loginBtn, false);
+                        hideGlobalLoading();
+                        handleAuthError(error, 'login');
+                    }
+                });
+            }
+
+            if (signupForm) {
+                signupForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const signupBtn = document.getElementById('signupBtn');
+                    
+                    if (!validateStep(4)) {
+                        return;
+                    }
+                    
+                    const countryCode = document.getElementById('signupCountry');
+                    const phone = document.getElementById('signupPhone');
+                    const birthDate = document.getElementById('birthDate');
+                    const username = document.getElementById('username');
+                    const password = document.getElementById('signupPassword');
+                    const profileImage = profileImageInput ? profileImageInput.files[0] : null;
+                    
+                    const email = `${countryCode.value}${phone.value}@gmail.com`;
+                    
+                    setLoading(signupBtn, true);
+                    showGlobalLoading();
+                    
+                    try {
+                        let imageUrl = '';
+                        
+                        if (profileImage) {
+                            imageUrl = await uploadImageToImgBB(profileImage);
+                        }
+                        
+                        const userCredential = await window.whispaAuth.createUserWithEmailAndPassword(
+                            window.whispaAuth.auth, 
+                            email, 
+                            password.value
+                        );
+                        
+                        const user = userCredential.user;
+                        
+                        await window.whispaAuth.setDoc(window.whispaAuth.doc(window.whispaAuth.db, "users", user.uid), {
+                            uid: user.uid,
+                            username: username.value,
+                            phone: `${countryCode.value}${phone.value}`,
+                            birthDate: birthDate.value,
+                            profileImage: imageUrl,
+                            createdAt: new Date().toISOString()
+                        });
+                        
+                        storeCredentials(email, password.value);
+                        window.location.href = 'home.html';
+                        
+                    } catch (error) {
+                        setLoading(signupBtn, false);
+                        hideGlobalLoading();
+                        handleAuthError(error, 'signup');
+                    }
+                });
+            }
+
+            async function uploadImageToImgBB(imageFile) {
+                const formData = new FormData();
+                formData.append('image', imageFile);
+                
+                try {
+                    const response = await fetch('https://api.imgbb.com/1/upload?key=7275819de7bfd56f03b903f483157d22', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        return data.data.url;
+                    } else {
+                        throw new Error('Image upload failed');
+                    }
+                } catch (error) {
+                    console.error('Image upload error:', error);
+                    return '';
+                }
+            }
+
+            function showError(elementId, message) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.textContent = message;
+                    element.style.display = 'block';
+                }
+            }
+
+            function hideError(elementId) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.style.display = 'none';
+                }
+            }
+
+            function showSuccess(elementId) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.style.display = 'block';
+                    setTimeout(() => {
+                        element.style.display = 'none';
+                    }, 3000);
+                }
+            }
+
+            function setLoading(button, isLoading) {
+                if (button) {
+                    if (isLoading) {
+                        button.classList.add('loading');
+                        button.disabled = true;
+                    } else {
+                        button.classList.remove('loading');
+                        button.disabled = false;
+                    }
+                }
+            }
+
+            function resetSignupForm() {
+                navigateToStep(1);
+                if (signupForm) signupForm.reset();
+                if (profilePreview) profilePreview.style.display = 'none';
+                document.querySelectorAll('.error-message').forEach(el => {
+                    el.style.display = 'none';
+                });
+            }
+
+            function handleAuthError(error, formType) {
+                let errorMessage = 'An error occurred. Please try again.';
+                
+                switch (error.code) {
+                    case 'auth/invalid-email':
+                        errorMessage = 'Invalid email address.';
+                        break;
+                    case 'auth/user-disabled':
+                        errorMessage = 'This account has been disabled.';
+                        break;
+                    case 'auth/user-not-found':
+                        errorMessage = 'No account found with this phone number.';
+                        break;
+                    case 'auth/wrong-password':
+                        errorMessage = 'Incorrect password.';
+                        break;
+                    case 'auth/email-already-in-use':
+                        errorMessage = 'An account with this phone number already exists.';
+                        break;
+                    case 'auth/weak-password':
+                        errorMessage = 'Password is too weak.';
+                        break;
+                    case 'auth/network-request-failed':
+                        errorMessage = 'Network error. Please check your connection.';
+                        break;
+                    default:
+                        errorMessage = error.message;
+                }
+                
+                if (formType === 'login') {
+                    showError('loginPasswordError', errorMessage);
+                } else {
+                    showError('passwordError', errorMessage);
+                }
+            }
+
+            function init() {
+                resetSignupForm();
+                
+                const checkFirebase = setInterval(() => {
+                    if (window.whispaAuth && window.whispaAuth.auth) {
+                        clearInterval(checkFirebase);
+                        checkAutoLogin();
+                    }
+                }, 100);
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+</body>
+</html>
