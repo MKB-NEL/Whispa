@@ -79,11 +79,6 @@
             font-weight: 600;
         }
 
-        .profile-info p {
-            font-size: 0.8em;
-            color: #888888;
-        }
-
         .tabs {
             display: flex;
             background: #111111;
@@ -165,12 +160,12 @@
             color: #666666;
         }
 
-        .chats-list {
+        .content-list {
             flex: 1;
             overflow-y: auto;
         }
 
-        .chat-item {
+        .chat-item, .people-item {
             display: flex;
             align-items: center;
             padding: 12px;
@@ -179,7 +174,7 @@
             transition: all 0.3s ease;
         }
 
-        .chat-item:hover {
+        .chat-item:hover, .people-item:hover {
             background: #1a1a1a;
         }
 
@@ -187,7 +182,7 @@
             background: #2a2a2a;
         }
 
-        .chat-avatar {
+        .chat-avatar, .people-avatar {
             width: 48px;
             height: 48px;
             border-radius: 50%;
@@ -203,18 +198,18 @@
             background-position: center;
         }
 
-        .chat-info {
+        .chat-info, .people-info {
             flex: 1;
         }
 
-        .chat-header {
+        .chat-header, .people-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 4px;
         }
 
-        .chat-name {
+        .chat-name, .people-name {
             font-weight: 600;
             font-size: 0.95em;
         }
@@ -224,7 +219,7 @@
             color: #888888;
         }
 
-        .last-message {
+        .last-message, .people-status {
             font-size: 0.85em;
             color: #888888;
             white-space: nowrap;
@@ -241,6 +236,66 @@
             font-weight: 600;
             min-width: 18px;
             text-align: center;
+        }
+
+        .request-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .request-btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8em;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        .accept-btn {
+            background: #00a884;
+            color: white;
+        }
+
+        .decline-btn {
+            background: #333333;
+            color: white;
+        }
+
+        .notification-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 12px;
+            border-bottom: 1px solid #222222;
+        }
+
+        .notification-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #00a884;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            color: white;
+            font-size: 0.8em;
+        }
+
+        .notification-content {
+            flex: 1;
+        }
+
+        .notification-text {
+            font-size: 0.85em;
+            margin-bottom: 4px;
+        }
+
+        .notification-time {
+            font-size: 0.75em;
+            color: #888888;
         }
 
         /* Right Side - Chat Area */
@@ -795,7 +850,6 @@
                     <div class="profile-avatar" id="userAvatar">U</div>
                     <div class="profile-info">
                         <h3 id="userName">Username</h3>
-                        <p id="userStatus">Online</p>
                     </div>
                 </div>
 
@@ -805,7 +859,7 @@
                 </div>
 
                 <div class="chats-header">
-                    <h2>Chats</h2>
+                    <h2 id="contentTitle">Chats</h2>
                     <div class="header-actions">
                         <button class="icon-btn" title="New Group" id="newGroupBtn">
                             <i class="fas fa-users"></i>
@@ -816,11 +870,11 @@
                     </div>
                 </div>
 
-                <input type="text" class="search-bar" placeholder="Search messages..." id="searchInput">
+                <input type="text" class="search-bar" placeholder="Search..." id="searchInput">
             </div>
 
-            <div class="chats-list" id="chatsList">
-                <!-- Chat items will be dynamically added here -->
+            <div class="content-list" id="contentList">
+                <!-- Content will be dynamically added here based on active tab -->
             </div>
         </div>
 
@@ -850,7 +904,7 @@
             <div class="empty-chat" id="emptyChat">
                 <img src="https://i.ibb.co/zVkw45Kc/Whispa-1-removebg-preview.png" alt="Whispa Logo">
                 <h2>Welcome to Whispa</h2>
-                <p>Start a conversation by selecting a chat from the left or search for people to connect with.</p>
+                <p>Start a conversation by selecting a chat from the left or connect with people.</p>
             </div>
 
             <div class="messages-container" id="messagesContainer" style="display: none;">
@@ -875,7 +929,7 @@
     </div>
 
     <script>
-        // Firebase configuration - Using the same config as login.html
+        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyDLggigD7p7_-1amZKi91MVCZbLNnsQ6JE",
             authDomain: "whispa-d453f.firebaseapp.com",
@@ -898,21 +952,22 @@
             id: '',
             name: '',
             avatar: '',
-            status: 'Online',
-            lastSeen: new Date()
+            profileImage: ''
         };
 
         // Global variables
         let chats = [];
         let users = [];
-        let currentChatId = null;
+        let followRequests = [];
         let notifications = [];
+        let currentChatId = null;
+        let activeTab = 'chats';
 
         // DOM Elements
         const userAvatar = document.getElementById('userAvatar');
         const userName = document.getElementById('userName');
-        const userStatus = document.getElementById('userStatus');
-        const chatsList = document.getElementById('chatsList');
+        const contentList = document.getElementById('contentList');
+        const contentTitle = document.getElementById('contentTitle');
         const searchInput = document.getElementById('searchInput');
         const tabs = document.querySelectorAll('.tab');
         const emptyChat = document.getElementById('emptyChat');
@@ -954,7 +1009,7 @@
                     // User is signed in
                     currentUser.id = user.uid;
                     
-                    // Load user data from Firestore
+                    // Load user data from Firebase
                     loadUserData(user.uid).then(() => {
                         // Set current user info
                         userAvatar.textContent = currentUser.avatar;
@@ -970,16 +1025,16 @@
                         // Load data from Firebase
                         loadUsers();
                         loadChats();
-                        listenForNotifications();
+                        loadFollowRequests();
+                        loadNotifications();
+                        listenForRealTimeUpdates();
                         
                         hideLoading();
                     }).catch(error => {
                         console.error('Error loading user data:', error);
-                        // Redirect to login if user data not found
                         window.location.href = 'login.html';
                     });
                 } else {
-                    // No user is signed in, redirect to login
                     window.location.href = 'login.html';
                 }
             });
@@ -993,7 +1048,7 @@
             }
         }
 
-        // Load user data from Firestore
+        // Load user data from Firebase
         async function loadUserData(userId) {
             return new Promise((resolve, reject) => {
                 database.ref('users/' + userId).once('value')
@@ -1060,22 +1115,49 @@
                 // Sort chats by last activity (newest first)
                 chats.sort((a, b) => b.lastActivity - a.lastActivity);
                 
-                // Render chats
-                renderChats();
+                // Render content based on active tab
+                renderContent();
             });
         }
 
-        // Listen for notifications
-        function listenForNotifications() {
+        // Load follow requests
+        function loadFollowRequests() {
+            database.ref(`followRequests/${currentUser.id}`).on('value', (snapshot) => {
+                followRequests = [];
+                snapshot.forEach((childSnapshot) => {
+                    const request = childSnapshot.val();
+                    request.id = childSnapshot.key;
+                    request.fromUserId = childSnapshot.key;
+                    followRequests.push(request);
+                });
+                renderContent();
+            });
+        }
+
+        // Load notifications
+        function loadNotifications() {
+            database.ref(`notifications/${currentUser.id}`).orderByChild('timestamp').on('value', (snapshot) => {
+                notifications = [];
+                snapshot.forEach((childSnapshot) => {
+                    const notification = childSnapshot.val();
+                    notification.id = childSnapshot.key;
+                    notifications.push(notification);
+                });
+                // Sort notifications by timestamp (newest first)
+                notifications.sort((a, b) => b.timestamp - a.timestamp);
+                renderContent();
+            });
+        }
+
+        // Listen for real-time updates
+        function listenForRealTimeUpdates() {
+            // Listen for new notifications
             database.ref(`notifications/${currentUser.id}`).on('child_added', (snapshot) => {
                 const notification = snapshot.val();
                 notification.id = snapshot.key;
                 
-                // Show notification
+                // Show popup notification
                 showNotification(notification);
-                
-                // Remove notification after showing
-                database.ref(`notifications/${currentUser.id}/${snapshot.key}`).remove();
             });
         }
 
@@ -1098,7 +1180,6 @@
                         ${user.profileImage ? '' : (user.username ? user.username.charAt(0).toUpperCase() : 'U')}
                     </div>
                     <div class="user-name">${user.username || 'User'}</div>
-                    <input type="checkbox" class="user-checkbox" style="display: none;">
                 `;
                 
                 userItem.addEventListener('click', () => {
@@ -1109,12 +1190,23 @@
             });
         }
 
-        // Render chats list
-        function renderChats() {
-            chatsList.innerHTML = '';
+        // Render content based on active tab
+        function renderContent() {
+            contentList.innerHTML = '';
             
+            if (activeTab === 'chats') {
+                contentTitle.textContent = 'Chats';
+                renderChatsList();
+            } else if (activeTab === 'people') {
+                contentTitle.textContent = 'People';
+                renderPeopleContent();
+            }
+        }
+
+        // Render chats list
+        function renderChatsList() {
             if (chats.length === 0) {
-                chatsList.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">No chats yet. Start a conversation!</div>';
+                contentList.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">No chats yet. Start a conversation!</div>';
                 return;
             }
             
@@ -1135,7 +1227,6 @@
                             (chat.avatar && chat.avatar.startsWith('http') ? '' : '<i class="fas fa-users"></i>') : 
                             (chat.avatar && chat.avatar.startsWith('http') ? '' : (chat.avatar || 'U'))
                         }
-                        ${!chat.isGroup && chat.online ? '<div class="online-status"></div>' : ''}
                     </div>
                     <div class="chat-info">
                         <div class="chat-header">
@@ -1147,8 +1238,120 @@
                     ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
                 `;
                 
-                chatsList.appendChild(chatItem);
+                contentList.appendChild(chatItem);
             });
+        }
+
+        // Render people content (follow requests and notifications)
+        function renderPeopleContent() {
+            let contentHTML = '';
+            
+            // Follow Requests Section
+            if (followRequests.length > 0) {
+                contentHTML += `
+                    <div style="padding: 12px; border-bottom: 1px solid #333;">
+                        <h3 style="font-size: 0.9em; color: #888; margin-bottom: 8px;">Follow Requests</h3>
+                `;
+                
+                followRequests.forEach(request => {
+                    const user = users.find(u => u.id === request.fromUserId) || { username: 'Unknown User' };
+                    contentHTML += `
+                        <div class="people-item">
+                            <div class="people-avatar" style="${user.profileImage ? `background-image: url(${user.profileImage})` : ''}">
+                                ${user.profileImage ? '' : (user.username ? user.username.charAt(0).toUpperCase() : 'U')}
+                            </div>
+                            <div class="people-info">
+                                <div class="people-header">
+                                    <span class="people-name">${user.username || 'User'}</span>
+                                </div>
+                                <div class="people-status">Wants to follow you</div>
+                                <div class="request-actions">
+                                    <button class="request-btn accept-btn" data-request-id="${request.id}" data-user-id="${request.fromUserId}">Accept</button>
+                                    <button class="request-btn decline-btn" data-request-id="${request.id}" data-user-id="${request.fromUserId}">Decline</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                contentHTML += `</div>`;
+            }
+            
+            // Notifications Section
+            if (notifications.length > 0) {
+                contentHTML += `
+                    <div style="padding: 12px;">
+                        <h3 style="font-size: 0.9em; color: #888; margin-bottom: 8px;">Notifications</h3>
+                `;
+                
+                notifications.forEach(notification => {
+                    const timeString = formatTime(notification.timestamp);
+                    contentHTML += `
+                        <div class="notification-item">
+                            <div class="notification-icon">
+                                <i class="${notification.icon || 'fas fa-bell'}"></i>
+                            </div>
+                            <div class="notification-content">
+                                <div class="notification-text">${notification.message}</div>
+                                <div class="notification-time">${timeString}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                contentHTML += `</div>`;
+            }
+            
+            if (contentHTML === '') {
+                contentHTML = '<div style="text-align: center; padding: 20px; color: #888;">No notifications or follow requests</div>';
+            }
+            
+            contentList.innerHTML = contentHTML;
+            
+            // Add event listeners for follow request buttons
+            document.querySelectorAll('.accept-btn').forEach(btn => {
+                btn.addEventListener('click', handleFollowRequest);
+            });
+            
+            document.querySelectorAll('.decline-btn').forEach(btn => {
+                btn.addEventListener('click', handleFollowRequest);
+            });
+        }
+
+        // Handle follow request actions
+        function handleFollowRequest(e) {
+            const requestId = e.target.getAttribute('data-request-id');
+            const userId = e.target.getAttribute('data-user-id');
+            const isAccept = e.target.classList.contains('accept-btn');
+            
+            if (isAccept) {
+                // Accept follow request
+                const updates = {};
+                updates[`followers/${currentUser.id}/${userId}`] = true;
+                updates[`following/${userId}/${currentUser.id}`] = true;
+                updates[`followRequests/${currentUser.id}/${userId}`] = null;
+                
+                database.ref().update(updates)
+                    .then(() => {
+                        // Send notification to the user
+                        const notification = {
+                            type: 'follow_accepted',
+                            message: `${currentUser.name} accepted your follow request`,
+                            icon: 'fas fa-user-check',
+                            timestamp: firebase.database.ServerValue.TIMESTAMP
+                        };
+                        database.ref(`notifications/${userId}`).push(notification);
+                    })
+                    .catch(error => {
+                        console.error('Error accepting follow request:', error);
+                    });
+            } else {
+                // Decline follow request
+                database.ref(`followRequests/${currentUser.id}/${userId}`).remove()
+                    .catch(error => {
+                        console.error('Error declining follow request:', error);
+                    });
+            }
         }
 
         // Format time for display
@@ -1159,12 +1362,12 @@
             const now = new Date();
             const diff = now - date;
             
-            if (diff < 60 * 1000) { // Less than 1 minute
+            if (diff < 60 * 1000) {
                 return 'Just now';
-            } else if (diff < 60 * 60 * 1000) { // Less than 1 hour
+            } else if (diff < 60 * 60 * 1000) {
                 const minutes = Math.floor(diff / (60 * 1000));
                 return `${minutes}m ago`;
-            } else if (diff < 24 * 60 * 60 * 1000) { // Less than 1 day
+            } else if (diff < 24 * 60 * 60 * 1000) {
                 return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             } else {
                 return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
@@ -1183,7 +1386,7 @@
                         <i class="${notification.icon || 'fas fa-bell'}"></i>
                     </div>
                     <div class="notification-text">
-                        <div class="notification-title">${notification.title}</div>
+                        <div class="notification-title">Notification</div>
                         <div class="notification-message">${notification.message}</div>
                     </div>
                 </div>
@@ -1194,10 +1397,9 @@
             
             notificationsContainer.appendChild(notificationElement);
             
-            // Auto-remove after 8 seconds
             setTimeout(() => {
                 removeNotification(notification.id);
-            }, 8000);
+            }, 5000);
         }
 
         // Remove notification by ID
@@ -1218,11 +1420,8 @@
                 tab.addEventListener('click', () => {
                     tabs.forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
-                    
-                    if (tab.getAttribute('data-tab') === 'people') {
-                        // Switch to people tab
-                        window.location.href = 'search.html';
-                    }
+                    activeTab = tab.getAttribute('data-tab');
+                    renderContent();
                 });
             });
 
@@ -1236,9 +1435,7 @@
             });
 
             // Search functionality
-            searchInput.addEventListener('focus', () => {
-                window.location.href = 'search.html';
-            });
+            searchInput.addEventListener('input', handleSearch);
 
             // Send message
             sendButton.addEventListener('click', sendMessage);
@@ -1284,13 +1481,69 @@
                 updateUserStatus('Offline');
             });
 
-            // Handle page visibility change
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden) {
                     updateUserStatus('Away');
                 } else {
                     updateUserStatus('Online');
                 }
+            });
+        }
+
+        // Handle search
+        function handleSearch() {
+            const searchTerm = searchInput.value.toLowerCase();
+            if (activeTab === 'chats') {
+                // Filter chats
+                const filteredChats = chats.filter(chat => 
+                    chat.name.toLowerCase().includes(searchTerm) ||
+                    (chat.lastMessage && chat.lastMessage.toLowerCase().includes(searchTerm))
+                );
+                renderFilteredChats(filteredChats);
+            } else if (activeTab === 'people') {
+                // Filter users in people tab
+                // This would need additional implementation based on your user search requirements
+            }
+        }
+
+        // Render filtered chats
+        function renderFilteredChats(filteredChats) {
+            contentList.innerHTML = '';
+            
+            if (filteredChats.length === 0) {
+                contentList.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">No chats found</div>';
+                return;
+            }
+            
+            filteredChats.forEach(chat => {
+                const chatItem = document.createElement('div');
+                chatItem.className = 'chat-item';
+                if (chat.id === currentChatId) {
+                    chatItem.classList.add('active');
+                }
+                chatItem.setAttribute('data-chat-id', chat.id);
+                
+                const timeString = formatTime(chat.lastActivity);
+                const unreadCount = chat.unreadCount && chat.unreadCount[currentUser.id] ? chat.unreadCount[currentUser.id] : 0;
+                
+                chatItem.innerHTML = `
+                    <div class="chat-avatar" style="${chat.avatar && chat.avatar.startsWith('http') ? `background-image: url(${chat.avatar})` : ''}">
+                        ${chat.isGroup ? 
+                            (chat.avatar && chat.avatar.startsWith('http') ? '' : '<i class="fas fa-users"></i>') : 
+                            (chat.avatar && chat.avatar.startsWith('http') ? '' : (chat.avatar || 'U'))
+                        }
+                    </div>
+                    <div class="chat-info">
+                        <div class="chat-header">
+                            <span class="chat-name">${chat.name}</span>
+                            <span class="chat-time">${timeString}</span>
+                        </div>
+                        <div class="last-message">${chat.lastMessage || 'Start a conversation'}</div>
+                    </div>
+                    ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
+                `;
+                
+                contentList.appendChild(chatItem);
             });
         }
 
@@ -1318,7 +1571,6 @@
                 return;
             }
 
-            // Create group object
             const groupId = database.ref().child('chats').push().key;
             const members = {
                 [currentUser.id]: true
@@ -1341,28 +1593,21 @@
                 lastMessage: `${currentUser.name} created the group`
             };
 
-            // Save group to Firebase
             database.ref(`chats/${groupId}`).set(groupData)
                 .then(() => {
-                    // Send notifications to selected users
                     selectedUsers.forEach(userItem => {
                         const userId = userItem.getAttribute('data-user-id');
                         const notification = {
                             type: 'group_invite',
-                            title: 'Group Invitation',
                             message: `${currentUser.name} added you to the group "${name}"`,
                             icon: 'fas fa-users',
                             timestamp: firebase.database.ServerValue.TIMESTAMP
                         };
-                        
                         database.ref(`notifications/${userId}`).push(notification);
                     });
 
-                    // Close modal and reset form
                     groupModal.style.display = 'none';
                     resetGroupForm();
-                    
-                    // Open the new group chat
                     openChat(groupId);
                 })
                 .catch((error) => {
@@ -1378,15 +1623,12 @@
 
             currentChatId = chatId;
 
-            // Update UI
             emptyChat.style.display = 'none';
             messagesContainer.style.display = 'flex';
             messageInputArea.style.display = 'flex';
 
-            // Update chat header
             currentChatName.textContent = chat.name;
             
-            // Set chat avatar
             if (chat.avatar && chat.avatar.startsWith('http')) {
                 currentChatAvatar.style.backgroundImage = `url(${chat.avatar})`;
                 currentChatAvatar.textContent = '';
@@ -1400,7 +1642,6 @@
             if (chat.isGroup) {
                 currentChatStatus.textContent = `${Object.keys(chat.members).length} members`;
             } else {
-                // For individual chats, show online status
                 const otherUserId = Object.keys(chat.members).find(id => id !== currentUser.id);
                 if (otherUserId) {
                     database.ref(`users/${otherUserId}/status`).once('value', (snapshot) => {
@@ -1411,14 +1652,9 @@
                 }
             }
 
-            // Load messages
             loadMessages(chatId);
-
-            // Mark as read
             markChatAsRead(chatId);
-
-            // Re-render chats to update active state
-            renderChats();
+            renderContent();
         }
 
         // Load messages for a chat
@@ -1445,7 +1681,6 @@
                     messagesContainer.appendChild(messageElement);
                 });
                 
-                // Scroll to bottom
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             });
         }
@@ -1462,7 +1697,6 @@
             const text = messageInput.value.trim();
             if (!text || !currentChatId) return;
 
-            // Create new message
             const messageId = database.ref().child('messages').child(currentChatId).push().key;
             const newMessage = {
                 id: messageId,
@@ -1472,15 +1706,12 @@
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             };
 
-            // Save message to Firebase
             database.ref(`messages/${currentChatId}/${messageId}`).set(newMessage)
                 .then(() => {
-                    // Update chat last message and activity
                     const updates = {};
                     updates[`chats/${currentChatId}/lastMessage`] = text;
                     updates[`chats/${currentChatId}/lastActivity`] = firebase.database.ServerValue.TIMESTAMP;
                     
-                    // Increment unread count for other members
                     const chat = chats.find(c => c.id === currentChatId);
                     if (chat && chat.members) {
                         Object.keys(chat.members).forEach(memberId => {
@@ -1494,7 +1725,6 @@
                     return database.ref().update(updates);
                 })
                 .then(() => {
-                    // Clear input
                     messageInput.value = '';
                     messageInput.style.height = 'auto';
                 })
