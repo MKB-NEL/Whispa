@@ -7,8 +7,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔍</text></svg>">
     <style>
         * {
             margin: 0;
@@ -355,6 +356,7 @@
             font-weight: 600;
             font-size: 0.8em;
             transition: all 0.3s ease;
+            min-width: 80px;
         }
 
         .follow-btn:hover {
@@ -364,6 +366,10 @@
         .follow-btn.following {
             background: #333333;
             color: #888888;
+        }
+
+        .follow-btn.following:hover {
+            background: #444444;
         }
 
         /* Modal Styles */
@@ -1166,7 +1172,6 @@
         const firebaseConfig = {
             apiKey: "AIzaSyDLggigD7p7_-1amZKi91MVCZbLNnsQ6JE",
             authDomain: "whispa-d453f.firebaseapp.com",
-            databaseURL: "https://whispa-d453f-default-rtdb.firebaseio.com",
             projectId: "whispa-d453f",
             storageBucket: "whispa-d453f.firebasestorage.app",
             messagingSenderId: "315118383529",
@@ -1175,10 +1180,10 @@
         };
 
         // Initialize Firebase
-        let database, auth;
+        let db, auth;
         try {
             firebase.initializeApp(firebaseConfig);
-            database = firebase.database();
+            db = firebase.firestore();
             auth = firebase.auth();
         } catch (error) {
             console.error('Firebase initialization error:', error);
@@ -1187,6 +1192,7 @@
 
         // Global variables
         let currentUser = null;
+        let currentUserData = null;
         let currentPostType = 'post';
         let currentPosts = [];
         let currentPostDetail = null;
@@ -1200,12 +1206,12 @@
                 return;
             }
 
-            auth.onAuthStateChanged((user) => {
+            auth.onAuthStateChanged(async (user) => {
                 if (user) {
                     currentUser = user;
-                    loadUserData(user.uid);
-                    loadFollowingUsers();
-                    loadFeedPosts();
+                    await loadUserData(user.uid);
+                    await loadFollowingUsers();
+                    await loadFeedPosts();
                 } else {
                     window.location.href = 'login.html';
                 }
@@ -1214,47 +1220,48 @@
             setupEventListeners();
         }
 
-        // Load user data
-        function loadUserData(userId) {
-            if (!database) {
+        // Load user data from Firestore
+        async function loadUserData(userId) {
+            if (!db) {
                 showNotification('Database connection error', 'error');
                 return;
             }
 
-            database.ref('users/' + userId).once('value')
-                .then((snapshot) => {
-                    if (snapshot.exists()) {
-                        const userData = snapshot.val();
-                        currentUser = { ...currentUser, ...userData };
-                    }
-                })
-                .catch((error) => {
-                    console.error('Error loading user data:', error);
-                    showNotification('Error loading user data', 'error');
-                });
+            try {
+                const userDoc = await db.collection('users').doc(userId).get();
+                if (userDoc.exists) {
+                    currentUserData = userDoc.data();
+                } else {
+                    showNotification('User data not found', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                showNotification('Error loading user data', 'error');
+            }
         }
 
-        // Load following users
-        function loadFollowingUsers() {
-            if (!currentUser || !database) return;
+        // Load following users from Firestore
+        async function loadFollowingUsers() {
+            if (!currentUser || !db) return;
             
-            database.ref(`following/${currentUser.uid}`).on('value', (snapshot) => {
-                followingUsers = [];
-                if (snapshot.exists()) {
-                    snapshot.forEach((childSnapshot) => {
-                        followingUsers.push(childSnapshot.key);
-                    });
+            try {
+                const followingDoc = await db.collection('following').doc(currentUser.uid).get();
+                if (followingDoc.exists) {
+                    const data = followingDoc.data();
+                    followingUsers = data.following || [];
+                } else {
+                    followingUsers = [];
                 }
-                loadFeedPosts();
-            }, (error) => {
+            } catch (error) {
                 console.error('Error loading following users:', error);
                 showNotification('Error loading followed users', 'error');
-            });
+                followingUsers = [];
+            }
         }
 
-        // Load feed posts
-        function loadFeedPosts() {
-            if (!database) {
+        // Load feed posts from Firestore
+        async function loadFeedPosts() {
+            if (!db) {
                 showNotification('Database connection error', 'error');
                 return;
             }
@@ -1266,30 +1273,29 @@
 
             showFeedLoading();
             
-            database.ref('posts').orderByChild('timestamp').once('value')
-                .then((snapshot) => {
-                    currentPosts = [];
-                    if (snapshot.exists()) {
-                        snapshot.forEach((childSnapshot) => {
-                            const post = childSnapshot.val();
-                            post.id = childSnapshot.key;
-                            
-                            // Only show posts from followed users
-                            if (followingUsers.includes(post.userId) && !isPostExpired(post)) {
-                                currentPosts.push(post);
-                            }
-                        });
-                    }
+            try {
+                // Get posts from followed users
+                const postsSnapshot = await db.collection('posts')
+                    .where('userId', 'in', followingUsers)
+                    .orderBy('timestamp', 'desc')
+                    .get();
+
+                currentPosts = [];
+                postsSnapshot.forEach(doc => {
+                    const post = doc.data();
+                    post.id = doc.id;
                     
-                    // Sort by timestamp (newest first)
-                    currentPosts.sort((a, b) => b.timestamp - a.timestamp);
-                    renderFeedPosts();
-                })
-                .catch((error) => {
-                    console.error('Error loading posts:', error);
-                    showNotification('Error loading posts', 'error');
-                    showEmptyFeed();
+                    if (!isPostExpired(post)) {
+                        currentPosts.push(post);
+                    }
                 });
+                
+                renderFeedPosts();
+            } catch (error) {
+                console.error('Error loading posts:', error);
+                showNotification('Error loading posts', 'error');
+                showEmptyFeed();
+            }
         }
 
         // Check if post is expired (for status posts)
@@ -1317,7 +1323,6 @@
             hideFeedLoading();
             
             currentPosts.forEach(post => {
-                const user = post.user || { username: 'Unknown User' };
                 const postElement = createPostElement(post);
                 feedGrid.appendChild(postElement);
             });
@@ -1329,7 +1334,6 @@
             postCard.className = 'post-card';
             postCard.onclick = () => openPostDetail(post);
             
-            const user = post.user || { username: 'Unknown User' };
             const timeAgo = getTimeAgo(post.timestamp);
             const isExpiring = post.type === 'status' && isPostExpiring(post);
             
@@ -1340,10 +1344,10 @@
                      onerror="this.src='https://via.placeholder.com/300x300/1a1a1a/666666?text=Image+Error'">
                 <div class="post-content">
                     <div class="post-header">
-                        <div class="post-avatar" style="${user.profileImage ? `background-image: url(${user.profileImage})` : ''}">
-                            ${user.profileImage ? '' : (user.username ? user.username.charAt(0).toUpperCase() : 'U')}
+                        <div class="post-avatar" style="${post.userProfileImage ? `background-image: url(${post.userProfileImage})` : ''}">
+                            ${post.userProfileImage ? '' : (post.username ? post.username.charAt(0).toUpperCase() : 'U')}
                         </div>
-                        <div class="post-username">${user.username || 'User'}</div>
+                        <div class="post-username">${post.username || 'User'}</div>
                         <div class="post-time">${timeAgo}</div>
                         ${post.type === 'status' ? 
                             `<div class="status-indicator ${isExpiring ? 'status-expiring' : ''}"></div>` : 
@@ -1358,7 +1362,7 @@
                             <i class="fas fa-heart" style="color: #ff375f; margin-right: 4px;"></i>
                             ${post.likes ? Object.keys(post.likes).length : 0}
                             <i class="fas fa-comment" style="margin-left: 8px; margin-right: 4px;"></i>
-                            ${post.comments ? Object.keys(post.comments).length : 0}
+                            ${post.comments ? post.comments.length : 0}
                         </div>
                         <div class="post-type">${post.type === 'status' ? 'Status' : 'Post'}</div>
                     </div>
@@ -1398,7 +1402,7 @@
         }
 
         // Search functionality
-        function performSearch() {
+        async function performSearch() {
             const searchTerm = document.getElementById('searchInput').value.trim();
             
             if (!searchTerm) {
@@ -1406,7 +1410,7 @@
                 return;
             }
             
-            if (!database) {
+            if (!db) {
                 showNotification('Database connection error', 'error');
                 return;
             }
@@ -1414,30 +1418,29 @@
             showSearchResults();
             showSearchLoading();
             
-            // Search users
-            database.ref('users').once('value')
-                .then((snapshot) => {
-                    const searchResults = [];
-                    if (snapshot.exists()) {
-                        snapshot.forEach((childSnapshot) => {
-                            const user = childSnapshot.val();
-                            user.id = childSnapshot.key;
-                            
-                            if (user.id !== currentUser.uid && 
-                                (user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                 user.name?.toLowerCase().includes(searchTerm.toLowerCase()))) {
-                                searchResults.push(user);
-                            }
-                        });
-                    }
+            try {
+                // Search users in Firestore
+                const usersSnapshot = await db.collection('users')
+                    .where('username', '>=', searchTerm)
+                    .where('username', '<=', searchTerm + '\uf8ff')
+                    .get();
+
+                const searchResults = [];
+                usersSnapshot.forEach(doc => {
+                    const user = doc.data();
+                    user.id = doc.id;
                     
-                    renderSearchResults(searchResults);
-                })
-                .catch((error) => {
-                    console.error('Error searching:', error);
-                    showNotification('Error searching users', 'error');
-                    showEmptySearch();
+                    if (user.id !== currentUser.uid) {
+                        searchResults.push(user);
+                    }
                 });
+                
+                renderSearchResults(searchResults);
+            } catch (error) {
+                console.error('Error searching:', error);
+                showNotification('Error searching users', 'error');
+                showEmptySearch();
+            }
         }
 
         // Render search results
@@ -1477,8 +1480,8 @@
                         ${user.username || 'User'}
                     </div>
                     <div class="user-stats">
-                        ${user.followers ? Object.keys(user.followers).length : 0} followers • 
-                        ${user.following ? Object.keys(user.following).length : 0} following
+                        ${user.followersCount || 0} followers • 
+                        ${user.followingCount || 0} following
                     </div>
                     ${user.bio ? `<div class="user-bio">${user.bio}</div>` : ''}
                 </div>
@@ -1492,39 +1495,65 @@
         }
 
         // Toggle follow
-        function toggleFollow(userId) {
-            if (!currentUser || !database) return;
+        async function toggleFollow(userId) {
+            if (!currentUser || !db) return;
             
             const isFollowing = followingUsers.includes(userId);
-            const updates = {};
             
-            if (isFollowing) {
-                // Unfollow
-                updates[`following/${currentUser.uid}/${userId}`] = null;
-                updates[`followers/${userId}/${currentUser.uid}`] = null;
-            } else {
-                // Follow
-                updates[`following/${currentUser.uid}/${userId}`] = true;
-                updates[`followers/${userId}/${currentUser.uid}`] = true;
+            try {
+                if (isFollowing) {
+                    // Unfollow
+                    await db.collection('following').doc(currentUser.uid).update({
+                        following: firebase.firestore.FieldValue.arrayRemove(userId)
+                    });
+                    
+                    await db.collection('followers').doc(userId).update({
+                        followers: firebase.firestore.FieldValue.arrayRemove(currentUser.uid)
+                    });
+                    
+                    followingUsers = followingUsers.filter(id => id !== userId);
+                } else {
+                    // Follow
+                    await db.collection('following').doc(currentUser.uid).set({
+                        following: firebase.firestore.FieldValue.arrayUnion(userId)
+                    }, { merge: true });
+                    
+                    await db.collection('followers').doc(userId).set({
+                        followers: firebase.firestore.FieldValue.arrayUnion(currentUser.uid)
+                    }, { merge: true });
+                    
+                    followingUsers.push(userId);
+                    
+                    // Send notification
+                    const notification = {
+                        type: 'new_follower',
+                        message: `${currentUserData?.username || 'Someone'} started following you`,
+                        timestamp: new Date(),
+                        read: false,
+                        fromUserId: currentUser.uid
+                    };
+                    
+                    await db.collection('notifications').doc(userId).collection('userNotifications').add(notification);
+                }
                 
-                // Send notification
-                const notification = {
-                    type: 'new_follower',
-                    message: `${currentUser.username || 'Someone'} started following you`,
-                    timestamp: Date.now(),
-                    read: false
-                };
-                updates[`notifications/${userId}/${Date.now()}`] = notification;
-            }
-            
-            database.ref().update(updates)
-                .then(() => {
-                    showNotification(isFollowing ? 'Unfollowed user' : 'Started following user');
-                })
-                .catch((error) => {
-                    console.error('Error updating follow status:', error);
-                    showNotification('Error updating follow status', 'error');
+                // Update UI
+                const followButtons = document.querySelectorAll(`.follow-btn[onclick*="${userId}"]`);
+                followButtons.forEach(btn => {
+                    if (isFollowing) {
+                        btn.classList.remove('following');
+                        btn.textContent = 'Follow';
+                    } else {
+                        btn.classList.add('following');
+                        btn.textContent = 'Following';
+                    }
                 });
+                
+                showNotification(isFollowing ? 'Unfollowed user' : 'Started following user');
+                
+            } catch (error) {
+                console.error('Error updating follow status:', error);
+                showNotification('Error updating follow status', 'error');
+            }
         }
 
         // Post creation - Instagram Stories style
@@ -1562,10 +1591,19 @@
 
         // Reset post form
         function resetPostForm() {
-            document.getElementById('postForm').reset();
+            // Clear form fields manually since there's no form element
+            document.getElementById('postDescription').value = '';
             document.getElementById('mediaPreview').style.display = 'none';
             document.getElementById('mediaUploadArea').classList.remove('has-media');
+            document.getElementById('mediaUploadArea').innerHTML = `
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <div class="upload-text">Click to upload image or video</div>
+                <div style="font-size: 0.7em; color: #666; margin-top: 4px;">Max 10MB</div>
+            `;
             document.getElementById('nextStep1').disabled = true;
+            document.getElementById('mediaInput').value = '';
             currentMediaFile = null;
             currentPostType = 'post';
             document.querySelectorAll('.post-type-btn').forEach(btn => {
@@ -1618,27 +1656,23 @@
                 // Upload image to ImgBB
                 const imageUrl = await uploadToImgBB(currentMediaFile);
                 
-                // Create post object
-                const postId = database.ref().child('posts').push().key;
+                // Create post object for Firestore
                 const postData = {
-                    id: postId,
                     userId: currentUser.uid,
-                    user: {
-                        username: currentUser.username,
-                        profileImage: currentUser.profileImage
-                    },
+                    username: currentUserData?.username || 'User',
+                    userProfileImage: currentUserData?.profileImage || '',
                     type: currentPostType,
                     description: description,
                     imageUrl: imageUrl,
                     likes: {},
-                    comments: {},
+                    comments: [],
                     views: 0,
-                    timestamp: Date.now(),
-                    expiresAt: currentPostType === 'status' ? Date.now() + (24 * 60 * 60 * 1000) : null
+                    timestamp: new Date(),
+                    expiresAt: currentPostType === 'status' ? new Date(Date.now() + (24 * 60 * 60 * 1000)) : null
                 };
                 
-                // Save to Firebase
-                await database.ref(`posts/${postId}`).set(postData);
+                // Save to Firestore
+                await db.collection('posts').add(postData);
                 
                 closePostModal();
                 loadFeedPosts(); // Reload feed
@@ -1676,24 +1710,24 @@
             currentPostDetail = post;
             
             // Update post views
-            if (!post.views) post.views = 0;
-            database.ref(`posts/${post.id}/views`).set(post.views + 1);
+            db.collection('posts').doc(post.id).update({
+                views: (post.views || 0) + 1
+            });
             
             // Populate modal
             document.getElementById('detailPostImage').src = post.imageUrl || 
                 'https://via.placeholder.com/500x500/1a1a1a/666666?text=No+Image';
             
-            const user = post.user || { username: 'Unknown User' };
             document.getElementById('detailPostAvatar').style.backgroundImage = 
-                user.profileImage ? `url(${user.profileImage})` : '';
+                post.userProfileImage ? `url(${post.userProfileImage})` : '';
             document.getElementById('detailPostAvatar').textContent = 
-                user.profileImage ? '' : (user.username ? user.username.charAt(0).toUpperCase() : 'U');
+                post.userProfileImage ? '' : (post.username ? post.username.charAt(0).toUpperCase() : 'U');
             
-            document.getElementById('detailPostUsername').textContent = user.username || 'User';
+            document.getElementById('detailPostUsername').textContent = post.username || 'User';
             document.getElementById('detailPostTime').textContent = getTimeAgo(post.timestamp);
             document.getElementById('detailPostDescription').textContent = post.description || '';
             document.getElementById('detailPostLikes').textContent = post.likes ? Object.keys(post.likes).length : 0;
-            document.getElementById('detailPostComments').textContent = post.comments ? Object.keys(post.comments).length : 0;
+            document.getElementById('detailPostComments').textContent = post.comments ? post.comments.length : 0;
             document.getElementById('detailPostViews').textContent = (post.views || 0) + 1;
             
             // Update like button
@@ -1705,7 +1739,7 @@
             likeBtn.classList.toggle('active', isLiked);
             
             // Load comments
-            loadComments(post.id);
+            loadComments(post);
             
             document.getElementById('postDetailModal').style.display = 'flex';
         }
@@ -1715,59 +1749,58 @@
             currentPostDetail = null;
         }
 
-        function toggleLike() {
-            if (!currentPostDetail || !currentUser || !database) return;
+        async function toggleLike() {
+            if (!currentPostDetail || !currentUser || !db) return;
             
             const postId = currentPostDetail.id;
             const isLiked = currentPostDetail.likes && currentPostDetail.likes[currentUser.uid];
             
-            const updates = {};
-            if (isLiked) {
-                updates[`posts/${postId}/likes/${currentUser.uid}`] = null;
-            } else {
-                updates[`posts/${postId}/likes/${currentUser.uid}`] = true;
-                
-                // Send notification to post owner
-                if (currentPostDetail.userId !== currentUser.uid) {
-                    const notification = {
-                        type: 'post_like',
-                        message: `${currentUser.username || 'Someone'} liked your post`,
-                        timestamp: Date.now(),
-                        read: false,
-                        postId: postId
-                    };
-                    updates[`notifications/${currentPostDetail.userId}/${Date.now()}`] = notification;
+            try {
+                if (isLiked) {
+                    // Unlike
+                    await db.collection('posts').doc(postId).update({
+                        [`likes.${currentUser.uid}`]: firebase.firestore.FieldValue.delete()
+                    });
+                } else {
+                    // Like
+                    await db.collection('posts').doc(postId).update({
+                        [`likes.${currentUser.uid}`]: true
+                    });
+                    
+                    // Send notification to post owner
+                    if (currentPostDetail.userId !== currentUser.uid) {
+                        const notification = {
+                            type: 'post_like',
+                            message: `${currentUserData?.username || 'Someone'} liked your post`,
+                            timestamp: new Date(),
+                            read: false,
+                            postId: postId,
+                            fromUserId: currentUser.uid
+                        };
+                        
+                        await db.collection('notifications').doc(currentPostDetail.userId)
+                            .collection('userNotifications').add(notification);
+                    }
                 }
+            } catch (error) {
+                console.error('Error updating like:', error);
+                showNotification('Error updating like', 'error');
             }
-            
-            database.ref().update(updates)
-                .catch((error) => {
-                    console.error('Error updating like:', error);
-                    showNotification('Error updating like', 'error');
-                });
         }
 
-        function loadComments(postId) {
+        function loadComments(post) {
             const commentsList = document.getElementById('commentsList');
             commentsList.innerHTML = '';
             
-            database.ref(`posts/${postId}/comments`).orderByChild('timestamp').once('value')
-                .then((snapshot) => {
-                    if (!snapshot.exists()) {
-                        commentsList.innerHTML = '<div style="text-align: center; color: #888; padding: 16px; font-size: 0.8em;">No comments yet</div>';
-                        return;
-                    }
-                    
-                    snapshot.forEach((childSnapshot) => {
-                        const comment = childSnapshot.val();
-                        const commentElement = createCommentElement(comment);
-                        commentsList.appendChild(commentElement);
-                    });
-                })
-                .catch((error) => {
-                    console.error('Error loading comments:', error);
-                    commentsList.innerHTML = '<div style="text-align: center; color: #888; padding: 16px; font-size: 0.8em;">Error loading comments</div>';
-                });
+            if (!post.comments || post.comments.length === 0) {
+                commentsList.innerHTML = '<div style="text-align: center; color: #888; padding: 16px; font-size: 0.8em;">No comments yet</div>';
+                return;
+            }
+            
+            post.comments.forEach(comment => {
+                const commentElement = createCommentElement(comment);
+                commentsList.appendChild(commentElement);
+            });
         }
 
         function createCommentElement(comment) {
@@ -1776,10 +1809,10 @@
             
             commentDiv.innerHTML = `
                 <div class="comment-header">
-                    <div class="comment-avatar" style="${comment.user?.profileImage ? `background-image: url(${comment.user.profileImage})` : ''}">
-                        ${comment.user?.profileImage ? '' : (comment.user?.username ? comment.user.username.charAt(0).toUpperCase() : 'U')}
+                    <div class="comment-avatar" style="${comment.userProfileImage ? `background-image: url(${comment.userProfileImage})` : ''}">
+                        ${comment.userProfileImage ? '' : (comment.username ? comment.username.charAt(0).toUpperCase() : 'U')}
                     </div>
-                    <div class="comment-username">${comment.user?.username || 'User'}</div>
+                    <div class="comment-username">${comment.username || 'User'}</div>
                     <div class="comment-time">${getTimeAgo(comment.timestamp)}</div>
                 </div>
                 <div class="comment-text">${comment.text}</div>
@@ -1788,8 +1821,8 @@
             return commentDiv;
         }
 
-        function addComment() {
-            if (!currentPostDetail || !currentUser || !database) return;
+        async function addComment() {
+            if (!currentPostDetail || !currentUser || !db) return;
             
             const commentInput = document.getElementById('commentInput');
             const commentText = commentInput.value.trim();
@@ -1797,39 +1830,41 @@
             if (!commentText) return;
             
             const postId = currentPostDetail.id;
-            const commentId = database.ref().child('comments').push().key;
             const commentData = {
-                id: commentId,
                 userId: currentUser.uid,
-                user: {
-                    username: currentUser.username,
-                    profileImage: currentUser.profileImage
-                },
+                username: currentUserData?.username || 'User',
+                userProfileImage: currentUserData?.profileImage || '',
                 text: commentText,
-                timestamp: Date.now()
+                timestamp: new Date()
             };
             
-            database.ref(`posts/${postId}/comments/${commentId}`).set(commentData)
-                .then(() => {
-                    commentInput.value = '';
-                    loadComments(postId);
-                    
-                    // Send notification to post owner
-                    if (currentPostDetail.userId !== currentUser.uid) {
-                        const notification = {
-                            type: 'post_comment',
-                            message: `${currentUser.username || 'Someone'} commented on your post`,
-                            timestamp: Date.now(),
-                            read: false,
-                            postId: postId
-                        };
-                        database.ref(`notifications/${currentPostDetail.userId}/${Date.now()}`).set(notification);
-                    }
-                })
-                .catch((error) => {
-                    console.error('Error adding comment:', error);
-                    showNotification('Error adding comment', 'error');
+            try {
+                await db.collection('posts').doc(postId).update({
+                    comments: firebase.firestore.FieldValue.arrayUnion(commentData)
                 });
+                
+                commentInput.value = '';
+                loadComments(currentPostDetail);
+                
+                // Send notification to post owner
+                if (currentPostDetail.userId !== currentUser.uid) {
+                    const notification = {
+                        type: 'post_comment',
+                        message: `${currentUserData?.username || 'Someone'} commented on your post`,
+                        timestamp: new Date(),
+                        read: false,
+                        postId: postId,
+                        fromUserId: currentUser.uid
+                    };
+                    
+                    await db.collection('notifications').doc(currentPostDetail.userId)
+                        .collection('userNotifications').add(notification);
+                }
+                
+            } catch (error) {
+                console.error('Error adding comment:', error);
+                showNotification('Error adding comment', 'error');
+            }
         }
 
         function focusComment() {
