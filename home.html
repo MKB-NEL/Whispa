@@ -298,6 +298,50 @@
             color: #888888;
         }
 
+        /* Search Results */
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #222222;
+            transition: all 0.3s ease;
+        }
+
+        .search-result-item:hover {
+            background: #1a1a1a;
+        }
+
+        .search-result-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #00a884;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            margin-right: 12px;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .search-result-info {
+            flex: 1;
+        }
+
+        .search-result-name {
+            font-weight: 600;
+            font-size: 0.95em;
+            margin-bottom: 4px;
+        }
+
+        .search-result-type {
+            font-size: 0.8em;
+            color: #888888;
+        }
+
         /* Right Side - Chat Area */
         .chat-area {
             flex: 1;
@@ -849,7 +893,7 @@
                 <div class="profile-section">
                     <div class="profile-avatar" id="userAvatar">U</div>
                     <div class="profile-info">
-                        <h3 id="userName">Username</h3>
+                        <h3 id="userName">Loading...</h3>
                     </div>
                 </div>
 
@@ -952,7 +996,8 @@
             id: '',
             name: '',
             avatar: '',
-            profileImage: ''
+            profileImage: '',
+            username: ''
         };
 
         // Global variables
@@ -962,6 +1007,8 @@
         let notifications = [];
         let currentChatId = null;
         let activeTab = 'chats';
+        let isSearching = false;
+        let searchResults = [];
 
         // DOM Elements
         const userAvatar = document.getElementById('userAvatar');
@@ -1011,13 +1058,8 @@
                     
                     // Load user data from Firebase
                     loadUserData(user.uid).then(() => {
-                        // Set current user info
-                        userAvatar.textContent = currentUser.avatar;
-                        if (currentUser.profileImage) {
-                            userAvatar.style.backgroundImage = `url(${currentUser.profileImage})`;
-                            userAvatar.textContent = '';
-                        }
-                        userName.textContent = currentUser.name;
+                        // Set current user info with real data
+                        updateUserProfile();
                         
                         // Update user status in database
                         updateUserStatus('Online');
@@ -1048,6 +1090,21 @@
             }
         }
 
+        // Update user profile with real data
+        function updateUserProfile() {
+            // Set username
+            userName.textContent = currentUser.username || currentUser.name;
+            
+            // Set profile picture
+            if (currentUser.profileImage) {
+                userAvatar.style.backgroundImage = `url(${currentUser.profileImage})`;
+                userAvatar.textContent = '';
+            } else {
+                userAvatar.textContent = currentUser.username ? currentUser.username.charAt(0).toUpperCase() : 
+                                        currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U';
+            }
+        }
+
         // Load user data from Firebase
         async function loadUserData(userId) {
             return new Promise((resolve, reject) => {
@@ -1055,8 +1112,9 @@
                     .then((snapshot) => {
                         if (snapshot.exists()) {
                             const userData = snapshot.val();
-                            currentUser.name = userData.username || 'User';
-                            currentUser.avatar = userData.username ? userData.username.charAt(0).toUpperCase() : 'U';
+                            currentUser.name = userData.name || 'User';
+                            currentUser.username = userData.username || userData.name || 'User';
+                            currentUser.avatar = currentUser.username.charAt(0).toUpperCase();
                             currentUser.profileImage = userData.profileImage || '';
                             currentUser.phone = userData.phone || '';
                             resolve(userData);
@@ -1161,7 +1219,7 @@
             });
         }
 
-        // Update users list in group modal
+        // Update users list in group modal with real data
         function updateUsersList() {
             usersList.innerHTML = '';
             
@@ -1175,11 +1233,14 @@
                 userItem.className = 'user-item';
                 userItem.setAttribute('data-user-id', user.id);
                 
+                const userDisplayName = user.username || user.name || 'User';
+                const userAvatarText = userDisplayName.charAt(0).toUpperCase();
+                
                 userItem.innerHTML = `
                     <div class="user-avatar" style="${user.profileImage ? `background-image: url(${user.profileImage})` : ''}">
-                        ${user.profileImage ? '' : (user.username ? user.username.charAt(0).toUpperCase() : 'U')}
+                        ${user.profileImage ? '' : userAvatarText}
                     </div>
-                    <div class="user-name">${user.username || 'User'}</div>
+                    <div class="user-name">${userDisplayName}</div>
                 `;
                 
                 userItem.addEventListener('click', () => {
@@ -1192,6 +1253,11 @@
 
         // Render content based on active tab
         function renderContent() {
+            if (isSearching) {
+                renderSearchResults();
+                return;
+            }
+            
             contentList.innerHTML = '';
             
             if (activeTab === 'chats') {
@@ -1203,7 +1269,7 @@
             }
         }
 
-        // Render chats list
+        // Render chats list with real user data
         function renderChatsList() {
             if (chats.length === 0) {
                 contentList.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">No chats yet. Start a conversation!</div>';
@@ -1221,16 +1287,32 @@
                 const timeString = formatTime(chat.lastActivity);
                 const unreadCount = chat.unreadCount && chat.unreadCount[currentUser.id] ? chat.unreadCount[currentUser.id] : 0;
                 
+                // Get the other user's name for individual chats
+                let chatDisplayName = chat.name;
+                let chatAvatar = chat.avatar;
+                
+                if (!chat.isGroup) {
+                    // For individual chats, find the other user's real name
+                    const otherUserId = Object.keys(chat.members).find(id => id !== currentUser.id);
+                    if (otherUserId) {
+                        const otherUser = users.find(u => u.id === otherUserId);
+                        if (otherUser) {
+                            chatDisplayName = otherUser.username || otherUser.name || 'User';
+                            chatAvatar = otherUser.profileImage || chatDisplayName.charAt(0).toUpperCase();
+                        }
+                    }
+                }
+                
                 chatItem.innerHTML = `
-                    <div class="chat-avatar" style="${chat.avatar && chat.avatar.startsWith('http') ? `background-image: url(${chat.avatar})` : ''}">
+                    <div class="chat-avatar" style="${chatAvatar && chatAvatar.startsWith('http') ? `background-image: url(${chatAvatar})` : ''}">
                         ${chat.isGroup ? 
-                            (chat.avatar && chat.avatar.startsWith('http') ? '' : '<i class="fas fa-users"></i>') : 
-                            (chat.avatar && chat.avatar.startsWith('http') ? '' : (chat.avatar || 'U'))
+                            (chatAvatar && chatAvatar.startsWith('http') ? '' : '<i class="fas fa-users"></i>') : 
+                            (chatAvatar && chatAvatar.startsWith('http') ? '' : chatAvatar)
                         }
                     </div>
                     <div class="chat-info">
                         <div class="chat-header">
-                            <span class="chat-name">${chat.name}</span>
+                            <span class="chat-name">${chatDisplayName}</span>
                             <span class="chat-time">${timeString}</span>
                         </div>
                         <div class="last-message">${chat.lastMessage || 'Start a conversation'}</div>
@@ -1242,7 +1324,7 @@
             });
         }
 
-        // Render people content (follow requests and notifications)
+        // Render people content with real user data
         function renderPeopleContent() {
             let contentHTML = '';
             
@@ -1254,24 +1336,29 @@
                 `;
                 
                 followRequests.forEach(request => {
-                    const user = users.find(u => u.id === request.fromUserId) || { username: 'Unknown User' };
-                    contentHTML += `
-                        <div class="people-item">
-                            <div class="people-avatar" style="${user.profileImage ? `background-image: url(${user.profileImage})` : ''}">
-                                ${user.profileImage ? '' : (user.username ? user.username.charAt(0).toUpperCase() : 'U')}
-                            </div>
-                            <div class="people-info">
-                                <div class="people-header">
-                                    <span class="people-name">${user.username || 'User'}</span>
+                    const user = users.find(u => u.id === request.fromUserId);
+                    if (user) {
+                        const userDisplayName = user.username || user.name || 'User';
+                        const userAvatarText = userDisplayName.charAt(0).toUpperCase();
+                        
+                        contentHTML += `
+                            <div class="people-item">
+                                <div class="people-avatar" style="${user.profileImage ? `background-image: url(${user.profileImage})` : ''}">
+                                    ${user.profileImage ? '' : userAvatarText}
                                 </div>
-                                <div class="people-status">Wants to follow you</div>
-                                <div class="request-actions">
-                                    <button class="request-btn accept-btn" data-request-id="${request.id}" data-user-id="${request.fromUserId}">Accept</button>
-                                    <button class="request-btn decline-btn" data-request-id="${request.id}" data-user-id="${request.fromUserId}">Decline</button>
+                                <div class="people-info">
+                                    <div class="people-header">
+                                        <span class="people-name">${userDisplayName}</span>
+                                    </div>
+                                    <div class="people-status">Wants to follow you</div>
+                                    <div class="request-actions">
+                                        <button class="request-btn accept-btn" data-request-id="${request.id}" data-user-id="${request.fromUserId}">Accept</button>
+                                        <button class="request-btn decline-btn" data-request-id="${request.id}" data-user-id="${request.fromUserId}">Decline</button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    `;
+                        `;
+                    }
                 });
                 
                 contentHTML += `</div>`;
@@ -1318,6 +1405,46 @@
             });
         }
 
+        // Render search results
+        function renderSearchResults() {
+            contentList.innerHTML = '';
+            
+            if (searchResults.length === 0) {
+                contentList.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">No results found</div>';
+                return;
+            }
+            
+            searchResults.forEach(result => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'search-result-item';
+                
+                const displayName = result.username || result.name || 'User';
+                const avatarText = displayName.charAt(0).toUpperCase();
+                
+                resultItem.innerHTML = `
+                    <div class="search-result-avatar" style="${result.profileImage ? `background-image: url(${result.profileImage})` : ''}">
+                        ${result.profileImage ? '' : avatarText}
+                    </div>
+                    <div class="search-result-info">
+                        <div class="search-result-name">${displayName}</div>
+                        <div class="search-result-type">${result.type === 'user' ? 'User' : 'Chat'}</div>
+                    </div>
+                `;
+                
+                resultItem.addEventListener('click', () => {
+                    if (result.type === 'user') {
+                        // Start a chat with this user
+                        startChatWithUser(result.id, displayName, result.profileImage);
+                    } else {
+                        // Open existing chat
+                        openChat(result.id);
+                    }
+                });
+                
+                contentList.appendChild(resultItem);
+            });
+        }
+
         // Handle follow request actions
         function handleFollowRequest(e) {
             const requestId = e.target.getAttribute('data-request-id');
@@ -1334,9 +1461,12 @@
                 database.ref().update(updates)
                     .then(() => {
                         // Send notification to the user
+                        const user = users.find(u => u.id === userId);
+                        const userDisplayName = user ? (user.username || user.name) : 'Someone';
+                        
                         const notification = {
                             type: 'follow_accepted',
-                            message: `${currentUser.name} accepted your follow request`,
+                            message: `${currentUser.username} accepted your follow request`,
                             icon: 'fas fa-user-check',
                             timestamp: firebase.database.ServerValue.TIMESTAMP
                         };
@@ -1421,6 +1551,8 @@
                     tabs.forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
                     activeTab = tab.getAttribute('data-tab');
+                    isSearching = false;
+                    searchInput.value = '';
                     renderContent();
                 });
             });
@@ -1435,7 +1567,8 @@
             });
 
             // Search functionality
-            searchInput.addEventListener('input', handleSearch);
+            searchInput.addEventListener('focus', handleSearchFocus);
+            searchInput.addEventListener('input', handleSearchInput);
 
             // Send message
             sendButton.addEventListener('click', sendMessage);
@@ -1490,61 +1623,124 @@
             });
         }
 
-        // Handle search
-        function handleSearch() {
-            const searchTerm = searchInput.value.toLowerCase();
-            if (activeTab === 'chats') {
-                // Filter chats
-                const filteredChats = chats.filter(chat => 
-                    chat.name.toLowerCase().includes(searchTerm) ||
-                    (chat.lastMessage && chat.lastMessage.toLowerCase().includes(searchTerm))
-                );
-                renderFilteredChats(filteredChats);
-            } else if (activeTab === 'people') {
-                // Filter users in people tab
-                // This would need additional implementation based on your user search requirements
-            }
-        }
-
-        // Render filtered chats
-        function renderFilteredChats(filteredChats) {
-            contentList.innerHTML = '';
-            
-            if (filteredChats.length === 0) {
-                contentList.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">No chats found</div>';
+        // Handle search focus
+        function handleSearchFocus() {
+            if (activeTab === 'people') {
+                // Redirect to search.html when in People tab
+                window.location.href = 'search.html';
                 return;
             }
             
-            filteredChats.forEach(chat => {
-                const chatItem = document.createElement('div');
-                chatItem.className = 'chat-item';
-                if (chat.id === currentChatId) {
-                    chatItem.classList.add('active');
-                }
-                chatItem.setAttribute('data-chat-id', chat.id);
+            // For Chats tab, enable local search
+            isSearching = true;
+            contentTitle.textContent = 'Search';
+        }
+
+        // Handle search input
+        function handleSearchInput() {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            
+            if (activeTab === 'people') {
+                return; // Handled by search.html
+            }
+            
+            if (!searchTerm) {
+                isSearching = false;
+                renderContent();
+                return;
+            }
+            
+            isSearching = true;
+            contentTitle.textContent = 'Search';
+            
+            // Search in chats and users
+            searchResults = [];
+            
+            // Search in chats
+            chats.forEach(chat => {
+                let chatDisplayName = chat.name;
                 
-                const timeString = formatTime(chat.lastActivity);
-                const unreadCount = chat.unreadCount && chat.unreadCount[currentUser.id] ? chat.unreadCount[currentUser.id] : 0;
-                
-                chatItem.innerHTML = `
-                    <div class="chat-avatar" style="${chat.avatar && chat.avatar.startsWith('http') ? `background-image: url(${chat.avatar})` : ''}">
-                        ${chat.isGroup ? 
-                            (chat.avatar && chat.avatar.startsWith('http') ? '' : '<i class="fas fa-users"></i>') : 
-                            (chat.avatar && chat.avatar.startsWith('http') ? '' : (chat.avatar || 'U'))
+                if (!chat.isGroup) {
+                    // For individual chats, find the other user's real name
+                    const otherUserId = Object.keys(chat.members).find(id => id !== currentUser.id);
+                    if (otherUserId) {
+                        const otherUser = users.find(u => u.id === otherUserId);
+                        if (otherUser) {
+                            chatDisplayName = otherUser.username || otherUser.name || 'User';
                         }
-                    </div>
-                    <div class="chat-info">
-                        <div class="chat-header">
-                            <span class="chat-name">${chat.name}</span>
-                            <span class="chat-time">${timeString}</span>
-                        </div>
-                        <div class="last-message">${chat.lastMessage || 'Start a conversation'}</div>
-                    </div>
-                    ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
-                `;
+                    }
+                }
                 
-                contentList.appendChild(chatItem);
+                if (chatDisplayName.toLowerCase().includes(searchTerm) ||
+                    (chat.lastMessage && chat.lastMessage.toLowerCase().includes(searchTerm))) {
+                    searchResults.push({
+                        id: chat.id,
+                        name: chatDisplayName,
+                        username: chatDisplayName,
+                        profileImage: chat.avatar && chat.avatar.startsWith('http') ? chat.avatar : null,
+                        type: 'chat'
+                    });
+                }
             });
+            
+            // Search in users
+            users.forEach(user => {
+                const userDisplayName = user.username || user.name || 'User';
+                if (userDisplayName.toLowerCase().includes(searchTerm)) {
+                    searchResults.push({
+                        id: user.id,
+                        name: user.name,
+                        username: user.username,
+                        profileImage: user.profileImage,
+                        type: 'user'
+                    });
+                }
+            });
+            
+            renderSearchResults();
+        }
+
+        // Start a chat with a user
+        function startChatWithUser(userId, userName, userProfileImage) {
+            // Check if chat already exists
+            const existingChat = chats.find(chat => 
+                !chat.isGroup && 
+                chat.members[currentUser.id] && 
+                chat.members[userId]
+            );
+            
+            if (existingChat) {
+                openChat(existingChat.id);
+                return;
+            }
+            
+            // Create new chat
+            const chatId = database.ref().child('chats').push().key;
+            const chatData = {
+                id: chatId,
+                name: userName,
+                avatar: userProfileImage || userName.charAt(0).toUpperCase(),
+                isGroup: false,
+                members: {
+                    [currentUser.id]: true,
+                    [userId]: true
+                },
+                createdBy: currentUser.id,
+                createdAt: firebase.database.ServerValue.TIMESTAMP,
+                lastActivity: firebase.database.ServerValue.TIMESTAMP,
+                lastMessage: 'Chat started'
+            };
+            
+            database.ref(`chats/${chatId}`).set(chatData)
+                .then(() => {
+                    openChat(chatId);
+                    isSearching = false;
+                    searchInput.value = '';
+                })
+                .catch(error => {
+                    console.error('Error creating chat:', error);
+                    alert('Error starting chat. Please try again.');
+                });
         }
 
         // Reset group form
@@ -1590,7 +1786,7 @@
                 createdBy: currentUser.id,
                 createdAt: firebase.database.ServerValue.TIMESTAMP,
                 lastActivity: firebase.database.ServerValue.TIMESTAMP,
-                lastMessage: `${currentUser.name} created the group`
+                lastMessage: `${currentUser.username} created the group`
             };
 
             database.ref(`chats/${groupId}`).set(groupData)
@@ -1599,7 +1795,7 @@
                         const userId = userItem.getAttribute('data-user-id');
                         const notification = {
                             type: 'group_invite',
-                            message: `${currentUser.name} added you to the group "${name}"`,
+                            message: `${currentUser.username} added you to the group "${name}"`,
                             icon: 'fas fa-users',
                             timestamp: firebase.database.ServerValue.TIMESTAMP
                         };
@@ -1627,16 +1823,32 @@
             messagesContainer.style.display = 'flex';
             messageInputArea.style.display = 'flex';
 
-            currentChatName.textContent = chat.name;
+            // Set chat display name and avatar
+            let chatDisplayName = chat.name;
+            let chatAvatar = chat.avatar;
             
-            if (chat.avatar && chat.avatar.startsWith('http')) {
-                currentChatAvatar.style.backgroundImage = `url(${chat.avatar})`;
+            if (!chat.isGroup) {
+                // For individual chats, find the other user's real data
+                const otherUserId = Object.keys(chat.members).find(id => id !== currentUser.id);
+                if (otherUserId) {
+                    const otherUser = users.find(u => u.id === otherUserId);
+                    if (otherUser) {
+                        chatDisplayName = otherUser.username || otherUser.name || 'User';
+                        chatAvatar = otherUser.profileImage || chatDisplayName.charAt(0).toUpperCase();
+                    }
+                }
+            }
+            
+            currentChatName.textContent = chatDisplayName;
+            
+            if (chatAvatar && chatAvatar.startsWith('http')) {
+                currentChatAvatar.style.backgroundImage = `url(${chatAvatar})`;
                 currentChatAvatar.textContent = '';
             } else {
                 currentChatAvatar.style.backgroundImage = '';
                 currentChatAvatar.textContent = chat.isGroup ? 
-                    (chat.avatar === 'G' ? '<i class="fas fa-users"></i>' : chat.avatar) : 
-                    (chat.avatar || 'U');
+                    (chatAvatar === 'G' ? '<i class="fas fa-users"></i>' : chatAvatar) : 
+                    chatAvatar;
             }
             
             if (chat.isGroup) {
@@ -1702,7 +1914,7 @@
                 id: messageId,
                 text: text,
                 senderId: currentUser.id,
-                senderName: currentUser.name,
+                senderName: currentUser.username,
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             };
 
