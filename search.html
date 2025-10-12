@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search - Whispa</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <style>
         * {
             margin: 0;
@@ -31,7 +35,7 @@
             top: 0;
             background: #000000;
             border-bottom: 1px solid #333333;
-            padding: 16px 0;
+            padding: 12px 0;
             z-index: 100;
         }
 
@@ -39,20 +43,21 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 16px;
+            gap: 12px;
         }
 
         .home-btn {
             background: #00a884;
             color: white;
             border: none;
-            padding: 10px 16px;
-            border-radius: 8px;
+            padding: 8px 12px;
+            border-radius: 6px;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             font-weight: 600;
+            font-size: 0.85em;
             transition: all 0.3s ease;
         }
 
@@ -68,12 +73,12 @@
 
         .search-input {
             width: 100%;
-            padding: 12px 45px 12px 16px;
+            padding: 10px 40px 10px 12px;
             background: #1a1a1a;
             border: 1px solid #333333;
             border-radius: 20px;
             color: #ffffff;
-            font-size: 0.9em;
+            font-size: 0.85em;
             transition: all 0.3s ease;
         }
 
@@ -94,6 +99,7 @@
             padding: 4px;
             border-radius: 4px;
             transition: all 0.3s ease;
+            font-size: 0.9em;
         }
 
         .search-btn:hover {
@@ -104,13 +110,14 @@
             background: #00a884;
             color: white;
             border: none;
-            padding: 10px 16px;
-            border-radius: 8px;
+            padding: 8px 12px;
+            border-radius: 6px;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             font-weight: 600;
+            font-size: 0.85em;
             transition: all 0.3s ease;
         }
 
@@ -118,22 +125,86 @@
             background: #008f70;
         }
 
+        /* Notification Styles */
+        .notification-container {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 300px;
+        }
+
+        .notification {
+            background: #1a1a1a;
+            border: 1px solid #00a884;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideInRight 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .notification-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00a884;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.7em;
+            flex-shrink: 0;
+        }
+
+        .notification-content {
+            flex: 1;
+        }
+
+        .notification-message {
+            font-size: 0.8em;
+            line-height: 1.3;
+        }
+
+        .notification-close {
+            background: none;
+            border: none;
+            color: #888888;
+            cursor: pointer;
+            padding: 2px;
+            border-radius: 2px;
+            font-size: 0.8em;
+            transition: all 0.3s ease;
+        }
+
+        .notification-close:hover {
+            color: #ffffff;
+        }
+
         /* Content Styles */
         .content-area {
-            padding: 24px 0;
+            padding: 20px 0;
         }
 
         /* Feed Grid */
         .feed-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
         }
 
         .post-card {
             background: #1a1a1a;
-            border-radius: 12px;
+            border-radius: 10px;
             overflow: hidden;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -147,25 +218,25 @@
 
         .post-image {
             width: 100%;
-            height: 280px;
+            height: 250px;
             object-fit: cover;
             background: #2a2a2a;
         }
 
         .post-content {
-            padding: 12px;
+            padding: 10px;
         }
 
         .post-header {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
+            gap: 6px;
+            margin-bottom: 6px;
         }
 
         .post-avatar {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
             background: #00a884;
             display: flex;
@@ -175,30 +246,35 @@
             color: white;
             background-size: cover;
             background-position: center;
+            font-size: 0.8em;
         }
 
         .post-username {
             font-weight: 600;
-            font-size: 0.9em;
+            font-size: 0.85em;
         }
 
         .post-time {
-            font-size: 0.75em;
+            font-size: 0.7em;
             color: #888888;
         }
 
         .post-description {
-            font-size: 0.85em;
+            font-size: 0.8em;
             color: #cccccc;
-            margin-bottom: 8px;
-            line-height: 1.4;
+            margin-bottom: 6px;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         .post-stats {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.8em;
+            font-size: 0.75em;
             color: #888888;
         }
 
@@ -207,7 +283,7 @@
             color: white;
             padding: 2px 6px;
             border-radius: 4px;
-            font-size: 0.7em;
+            font-size: 0.65em;
             font-weight: 600;
         }
 
@@ -219,10 +295,10 @@
         .user-result {
             display: flex;
             align-items: center;
-            padding: 16px;
+            padding: 12px;
             background: #1a1a1a;
-            border-radius: 12px;
-            margin-bottom: 12px;
+            border-radius: 10px;
+            margin-bottom: 8px;
             border: 1px solid #333333;
             transition: all 0.3s ease;
         }
@@ -232,8 +308,8 @@
         }
 
         .user-avatar {
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             background: #00a884;
             display: flex;
@@ -241,10 +317,10 @@
             justify-content: center;
             font-weight: bold;
             color: white;
-            margin-right: 16px;
+            margin-right: 12px;
             background-size: cover;
             background-position: center;
-            font-size: 1.2em;
+            font-size: 1em;
         }
 
         .user-info {
@@ -253,30 +329,31 @@
 
         .user-name {
             font-weight: 600;
-            font-size: 1.1em;
-            margin-bottom: 4px;
+            font-size: 1em;
+            margin-bottom: 2px;
         }
 
         .user-stats {
-            font-size: 0.85em;
+            font-size: 0.8em;
             color: #888888;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
         .user-bio {
-            font-size: 0.9em;
+            font-size: 0.85em;
             color: #cccccc;
-            line-height: 1.4;
+            line-height: 1.3;
         }
 
         .follow-btn {
             background: #00a884;
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
+            padding: 6px 12px;
+            border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
+            font-size: 0.8em;
             transition: all 0.3s ease;
         }
 
@@ -301,7 +378,7 @@
             align-items: center;
             justify-content: center;
             z-index: 1000;
-            padding: 20px;
+            padding: 16px;
         }
 
         .modal-content {
@@ -318,12 +395,12 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px;
+            padding: 16px;
             border-bottom: 1px solid #333333;
         }
 
         .modal-title {
-            font-size: 1.3em;
+            font-size: 1.2em;
             font-weight: 600;
         }
 
@@ -332,7 +409,7 @@
             border: none;
             color: #888888;
             cursor: pointer;
-            font-size: 1.2em;
+            font-size: 1.1em;
             padding: 4px;
             border-radius: 4px;
             transition: all 0.3s ease;
@@ -344,19 +421,85 @@
         }
 
         .modal-body {
+            padding: 16px;
+        }
+
+        /* Post Creation Modal - Instagram Stories Style */
+        .creation-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .step {
+            display: none;
+        }
+
+        .step.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .step-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .media-upload-area {
+            border: 2px dashed #333333;
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 16px;
+        }
+
+        .media-upload-area:hover {
+            border-color: #00a884;
+        }
+
+        .media-upload-area.has-media {
+            border-style: solid;
+            border-color: #00a884;
             padding: 20px;
         }
 
-        /* Post Creation Modal */
+        .upload-icon {
+            font-size: 2.5em;
+            color: #888888;
+            margin-bottom: 8px;
+        }
+
+        .upload-text {
+            color: #888888;
+            font-size: 0.9em;
+        }
+
+        .media-preview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            margin: 0 auto;
+            display: block;
+        }
+
         .post-type-selector {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 20px;
+            gap: 10px;
+            margin-bottom: 16px;
         }
 
         .post-type-btn {
-            padding: 16px;
+            padding: 12px;
             background: #2a2a2a;
             border: 2px solid #333333;
             border-radius: 8px;
@@ -375,45 +518,46 @@
         }
 
         .post-type-icon {
-            font-size: 2em;
-            margin-bottom: 8px;
+            font-size: 1.5em;
+            margin-bottom: 6px;
             color: #00a884;
         }
 
         .post-type-name {
             font-weight: 600;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
+            font-size: 0.9em;
         }
 
         .post-type-desc {
-            font-size: 0.8em;
+            font-size: 0.75em;
             color: #888888;
         }
 
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .form-label {
             display: block;
             margin-bottom: 6px;
-            font-size: 0.9em;
+            font-size: 0.85em;
             font-weight: 500;
         }
 
         .form-input, .form-textarea {
             width: 100%;
-            padding: 12px;
+            padding: 10px;
             background: #2a2a2a;
             border: 1px solid #333333;
             border-radius: 8px;
             color: #ffffff;
-            font-size: 0.9em;
+            font-size: 0.85em;
             resize: vertical;
         }
 
         .form-textarea {
-            min-height: 100px;
+            min-height: 80px;
         }
 
         .form-input:focus, .form-textarea:focus {
@@ -421,86 +565,24 @@
             border-color: #00a884;
         }
 
-        .file-input-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-            width: 100%;
-        }
-
-        .file-input {
-            position: absolute;
-            left: -9999px;
-        }
-
-        .file-input-label {
+        .creation-actions {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-            background: #2a2a2a;
-            border: 2px dashed #333333;
-            border-radius: 8px;
-            color: #888888;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .file-input-label:hover {
-            border-color: #00a884;
-            color: #ffffff;
-        }
-
-        .image-preview {
-            width: 100%;
-            max-height: 200px;
-            object-fit: contain;
-            border-radius: 8px;
-            margin-top: 12px;
-            display: none;
-        }
-
-        .background-options {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        .bg-option {
-            height: 60px;
-            border-radius: 8px;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: all 0.3s ease;
-        }
-
-        .bg-option:hover {
-            transform: scale(1.05);
-        }
-
-        .bg-option.selected {
-            border-color: #00a884;
-        }
-
-        .modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-            margin-top: 20px;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 16px;
         }
 
         .btn {
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 0.9em;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.85em;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.3s ease;
             border: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .btn-primary {
@@ -521,6 +603,11 @@
             background: #333333;
         }
 
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         /* Post Detail Modal */
         .post-detail-modal {
             max-width: 900px;
@@ -531,7 +618,7 @@
         @media (min-width: 768px) {
             .post-detail-modal {
                 flex-direction: row;
-                max-height: 600px;
+                max-height: 500px;
             }
         }
 
@@ -541,7 +628,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 400px;
+            min-height: 300px;
         }
 
         .post-detail-image {
@@ -554,20 +641,20 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            max-height: 600px;
+            max-height: 500px;
         }
 
         .post-detail-header {
-            padding: 16px;
+            padding: 12px;
             border-bottom: 1px solid #333333;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
         .post-detail-avatar {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             background: #00a884;
             display: flex;
@@ -577,6 +664,7 @@
             color: white;
             background-size: cover;
             background-position: center;
+            font-size: 0.9em;
         }
 
         .post-detail-user {
@@ -585,50 +673,51 @@
 
         .post-detail-username {
             font-weight: 600;
-            font-size: 1em;
+            font-size: 0.95em;
         }
 
         .post-detail-time {
-            font-size: 0.8em;
+            font-size: 0.75em;
             color: #888888;
         }
 
         .post-detail-body {
             flex: 1;
-            padding: 16px;
+            padding: 12px;
             overflow-y: auto;
         }
 
         .post-detail-description {
-            margin-bottom: 16px;
-            line-height: 1.5;
+            margin-bottom: 12px;
+            line-height: 1.4;
+            font-size: 0.9em;
         }
 
         .post-detail-stats {
             display: flex;
-            gap: 16px;
-            margin-bottom: 16px;
-            padding-bottom: 16px;
+            gap: 12px;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
             border-bottom: 1px solid #333333;
+            font-size: 0.8em;
         }
 
         .stat-item {
             display: flex;
             align-items: center;
-            gap: 6px;
-            font-size: 0.9em;
+            gap: 4px;
             color: #888888;
         }
 
         .post-actions {
             display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
+            gap: 6px;
+            margin-bottom: 12px;
         }
 
         .action-btn {
             flex: 1;
-            padding: 8px;
+            padding: 6px;
             background: #2a2a2a;
             border: none;
             border-radius: 6px;
@@ -637,9 +726,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 4px;
             transition: all 0.3s ease;
-            font-size: 0.85em;
+            font-size: 0.8em;
         }
 
         .action-btn:hover {
@@ -652,23 +741,23 @@
         }
 
         .comments-section {
-            margin-top: 16px;
+            margin-top: 12px;
         }
 
         .comment-input {
             display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
+            gap: 6px;
+            margin-bottom: 12px;
         }
 
         .comment-input-field {
             flex: 1;
-            padding: 10px 12px;
+            padding: 8px 10px;
             background: #2a2a2a;
             border: 1px solid #333333;
             border-radius: 20px;
             color: #ffffff;
-            font-size: 0.9em;
+            font-size: 0.85em;
         }
 
         .comment-input-field:focus {
@@ -680,10 +769,10 @@
             background: #00a884;
             color: white;
             border: none;
-            padding: 10px 16px;
+            padding: 8px 12px;
             border-radius: 20px;
             cursor: pointer;
-            font-size: 0.9em;
+            font-size: 0.85em;
             transition: all 0.3s ease;
         }
 
@@ -692,31 +781,31 @@
         }
 
         .comments-list {
-            max-height: 200px;
+            max-height: 150px;
             overflow-y: auto;
         }
 
         .comment-item {
-            padding: 8px 0;
+            padding: 6px 0;
             border-bottom: 1px solid #2a2a2a;
         }
 
         .comment-header {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-bottom: 4px;
+            gap: 6px;
+            margin-bottom: 2px;
         }
 
         .comment-avatar {
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             background: #00a884;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.7em;
+            font-size: 0.6em;
             font-weight: bold;
             color: white;
             background-size: cover;
@@ -725,29 +814,29 @@
 
         .comment-username {
             font-weight: 600;
-            font-size: 0.85em;
+            font-size: 0.8em;
         }
 
         .comment-time {
-            font-size: 0.75em;
+            font-size: 0.7em;
             color: #888888;
         }
 
         .comment-text {
-            font-size: 0.9em;
-            line-height: 1.4;
-            margin-left: 32px;
+            font-size: 0.85em;
+            line-height: 1.3;
+            margin-left: 26px;
         }
 
         /* Loading Spinner */
         .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #333333;
-            border-top: 3px solid #00a884;
+            width: 30px;
+            height: 30px;
+            border: 2px solid #333333;
+            border-top: 2px solid #00a884;
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin: 20px auto;
+            margin: 16px auto;
         }
 
         @keyframes spin {
@@ -758,60 +847,20 @@
         /* Empty States */
         .empty-state {
             text-align: center;
-            padding: 40px 20px;
+            padding: 30px 16px;
             color: #888888;
         }
 
         .empty-state-icon {
-            font-size: 3em;
-            margin-bottom: 16px;
+            font-size: 2.5em;
+            margin-bottom: 12px;
             color: #333333;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .header-content {
-                flex-wrap: wrap;
-            }
-            
-            .search-container {
-                order: 3;
-                flex: 1 0 100%;
-                margin-top: 12px;
-            }
-            
-            .feed-grid {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            }
-            
-            .post-image {
-                height: 150px;
-            }
-            
-            .post-detail-modal {
-                flex-direction: column;
-                max-height: 80vh;
-            }
-            
-            .post-image-container {
-                min-height: 200px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .feed-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-            
-            .post-type-selector {
-                grid-template-columns: 1fr;
-            }
         }
 
         /* Status Indicator */
         .status-indicator {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
             background: #00a884;
             margin-left: 4px;
@@ -825,36 +874,7 @@
             background: #ff3b30;
         }
 
-        /* Advanced Features */
-        .feature-badge {
-            background: linear-gradient(45deg, #00a884, #007a5e);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.7em;
-            font-weight: 600;
-            margin-left: 8px;
-        }
-
-        .privacy-badge {
-            background: #333333;
-            color: #888888;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.7em;
-            margin-left: 8px;
-        }
-
-        .trending-badge {
-            background: linear-gradient(45deg, #ff9500, #ff5e3a);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.7em;
-            font-weight: 600;
-            margin-left: 8px;
-        }
-
+        /* Save Button */
         .save-btn {
             background: transparent;
             border: none;
@@ -863,6 +883,7 @@
             padding: 4px;
             border-radius: 4px;
             transition: all 0.3s ease;
+            font-size: 0.9em;
         }
 
         .save-btn:hover {
@@ -873,43 +894,62 @@
             color: #00a884;
         }
 
-        .share-menu {
-            position: relative;
+        /* Error States */
+        .error-message {
+            background: #ff3b30;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.8em;
+            margin-bottom: 12px;
+            text-align: center;
         }
 
-        .share-options {
-            position: absolute;
-            bottom: 100%;
-            right: 0;
-            background: #2a2a2a;
-            border: 1px solid #333333;
-            border-radius: 8px;
-            padding: 8px;
-            display: none;
-            flex-direction: column;
-            gap: 4px;
-            min-width: 120px;
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-wrap: wrap;
+            }
+            
+            .search-container {
+                order: 3;
+                flex: 1 0 100%;
+                margin-top: 8px;
+            }
+            
+            .feed-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 8px;
+            }
+            
+            .post-image {
+                height: 150px;
+            }
+            
+            .post-detail-modal {
+                flex-direction: column;
+                max-height: 70vh;
+            }
+            
+            .post-image-container {
+                min-height: 200px;
+            }
+
+            .notification-container {
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
         }
 
-        .share-menu:hover .share-options {
-            display: flex;
-        }
-
-        .share-option {
-            padding: 8px;
-            background: transparent;
-            border: none;
-            color: #cccccc;
-            cursor: pointer;
-            text-align: left;
-            border-radius: 4px;
-            font-size: 0.85em;
-            transition: all 0.3s ease;
-        }
-
-        .share-option:hover {
-            background: #333333;
-            color: #ffffff;
+        @media (max-width: 480px) {
+            .feed-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .post-type-selector {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -924,7 +964,7 @@
                 </button>
                 
                 <div class="search-container">
-                    <input type="text" class="search-input" id="searchInput" placeholder="Search users, posts, or tags...">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Search users...">
                     <button class="search-btn" onclick="performSearch()">
                         <i class="fas fa-search"></i>
                     </button>
@@ -937,6 +977,9 @@
             </div>
         </div>
     </header>
+
+    <!-- Notification Container -->
+    <div class="notification-container" id="notificationContainer"></div>
 
     <!-- Content Area -->
     <div class="container">
@@ -955,7 +998,7 @@
                     </div>
                     <h3>No posts yet</h3>
                     <p>When people you follow start posting, you'll see their content here.</p>
-                    <button class="btn btn-primary" onclick="openPostModal()" style="margin-top: 16px;">
+                    <button class="btn btn-primary" onclick="openPostModal()" style="margin-top: 12px;">
                         Create First Post
                     </button>
                 </div>
@@ -974,7 +1017,7 @@
                         <i class="fas fa-search"></i>
                     </div>
                     <h3>No results found</h3>
-                    <p>Try searching for different keywords or usernames.</p>
+                    <p>Try searching for different usernames.</p>
                 </div>
             </div>
         </div>
@@ -990,73 +1033,63 @@
                 </button>
             </div>
             <div class="modal-body">
-                <div class="post-type-selector">
-                    <div class="post-type-btn" data-type="post" onclick="selectPostType('post')">
-                        <div class="post-type-icon">
-                            <i class="fas fa-image"></i>
+                <div class="creation-steps">
+                    <!-- Step 1: Media Upload -->
+                    <div class="step active" id="step1">
+                        <div class="step-title">Add Media</div>
+                        <div class="media-upload-area" id="mediaUploadArea" onclick="document.getElementById('mediaInput').click()">
+                            <div class="upload-icon">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                            </div>
+                            <div class="upload-text">Click to upload image or video</div>
+                            <div style="font-size: 0.7em; color: #666; margin-top: 4px;">Max 10MB</div>
                         </div>
-                        <div class="post-type-name">Post</div>
-                        <div class="post-type-desc">Permanent content</div>
+                        <input type="file" id="mediaInput" accept="image/*,video/*" style="display: none;">
+                        <div class="creation-actions">
+                            <button class="btn btn-secondary" onclick="closePostModal()">Cancel</button>
+                            <button class="btn btn-primary" onclick="goToStep(2)" id="nextStep1" disabled>
+                                Next <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div class="post-type-btn" data-type="status" onclick="selectPostType('status')">
-                        <div class="post-type-icon">
-                            <i class="fas fa-clock"></i>
+
+                    <!-- Step 2: Description and Type -->
+                    <div class="step" id="step2">
+                        <div class="step-title">Add Details</div>
+                        <img id="mediaPreview" class="media-preview" style="display: none; margin-bottom: 12px;">
+                        
+                        <div class="form-group">
+                            <label class="form-label">Description (optional)</label>
+                            <textarea class="form-textarea" id="postDescription" placeholder="What's on your mind?"></textarea>
                         </div>
-                        <div class="post-type-name">Status</div>
-                        <div class="post-type-desc">24 hours only</div>
+
+                        <div class="post-type-selector">
+                            <div class="post-type-btn" data-type="post" onclick="selectPostType('post')">
+                                <div class="post-type-icon">
+                                    <i class="fas fa-image"></i>
+                                </div>
+                                <div class="post-type-name">Post</div>
+                                <div class="post-type-desc">Permanent</div>
+                            </div>
+                            <div class="post-type-btn" data-type="status" onclick="selectPostType('status')">
+                                <div class="post-type-icon">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="post-type-name">Status</div>
+                                <div class="post-type-desc">24 hours</div>
+                            </div>
+                        </div>
+
+                        <div class="creation-actions">
+                            <button class="btn btn-secondary" onclick="goToStep(1)">
+                                <i class="fas fa-arrow-left"></i> Back
+                            </button>
+                            <button class="btn btn-primary" id="createPostBtn">
+                                <i class="fas fa-paper-plane"></i> Create Post
+                            </button>
+                        </div>
                     </div>
                 </div>
-
-                <form id="postForm">
-                    <div class="form-group">
-                        <label class="form-label">Description (optional)</label>
-                        <textarea class="form-textarea" id="postDescription" placeholder="What's on your mind?"></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Add Media</label>
-                        <div class="file-input-wrapper">
-                            <input type="file" class="file-input" id="postImage" accept="image/*,video/*">
-                            <label for="postImage" class="file-input-label">
-                                <i class="fas fa-cloud-upload-alt" style="font-size: 2em;"></i>
-                                <span>Click to upload image or video</span>
-                                <span style="font-size: 0.8em; color: #666;">Max 10MB</span>
-                            </label>
-                        </div>
-                        <img id="imagePreview" class="image-preview" alt="Preview">
-                    </div>
-
-                    <div class="form-group" id="textOnlySection" style="display: none;">
-                        <label class="form-label">Or create text post with background</label>
-                        <div class="background-options">
-                            <div class="bg-option selected" style="background: linear-gradient(45deg, #667eea, #764ba2);" data-bg="gradient1"></div>
-                            <div class="bg-option" style="background: linear-gradient(45deg, #f093fb, #f5576c);" data-bg="gradient2"></div>
-                            <div class="bg-option" style="background: linear-gradient(45deg, #4facfe, #00f2fe);" data-bg="gradient3"></div>
-                            <div class="bg-option" style="background: linear-gradient(45deg, #43e97b, #38f9d7);" data-bg="gradient4"></div>
-                            <div class="bg-option" style="background: linear-gradient(45deg, #fa709a, #fee140);" data-bg="gradient5"></div>
-                            <div class="bg-option" style="background: linear-gradient(45deg, #30cfd0, #330867);" data-bg="gradient6"></div>
-                            <div class="bg-option" style="background: #1a1a1a; border: 1px solid #333;" data-bg="dark"></div>
-                            <div class="bg-option" style="background: #ffffff; border: 1px solid #333;" data-bg="light"></div>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Privacy</label>
-                        <select class="form-input" id="postPrivacy">
-                            <option value="public">Public</option>
-                            <option value="followers">Followers Only</option>
-                            <option value="private">Private</option>
-                        </select>
-                    </div>
-
-                    <div class="modal-actions">
-                        <button type="button" class="btn btn-secondary" onclick="closePostModal()">Cancel</button>
-                        <button type="submit" class="btn btn-primary" id="postSubmitBtn">
-                            <i class="fas fa-paper-plane"></i>
-                            Create Post
-                        </button>
-                    </div>
-                </form>
             </div>
         </div>
     </div>
@@ -1106,23 +1139,6 @@
                             <i class="far fa-comment"></i>
                             Comment
                         </button>
-                        <div class="share-menu">
-                            <button class="action-btn">
-                                <i class="far fa-share-square"></i>
-                                Share
-                            </button>
-                            <div class="share-options">
-                                <button class="share-option" onclick="sharePost('copy')">
-                                    <i class="fas fa-copy"></i> Copy Link
-                                </button>
-                                <button class="share-option" onclick="sharePost('whatsapp')">
-                                    <i class="fab fa-whatsapp"></i> WhatsApp
-                                </button>
-                                <button class="share-option" onclick="sharePost('twitter')">
-                                    <i class="fab fa-twitter"></i> Twitter
-                                </button>
-                            </div>
-                        </div>
                         <button class="action-btn save-btn" id="saveBtn" onclick="toggleSave()">
                             <i class="far fa-bookmark"></i>
                         </button>
@@ -1159,20 +1175,31 @@
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        const auth = firebase.auth();
+        let database, auth;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            auth = firebase.auth();
+        } catch (error) {
+            console.error('Firebase initialization error:', error);
+            showNotification('Error connecting to server. Please refresh the page.', 'error');
+        }
 
         // Global variables
         let currentUser = null;
         let currentPostType = 'post';
-        let selectedBackground = 'gradient1';
         let currentPosts = [];
         let currentPostDetail = null;
         let followingUsers = [];
+        let currentMediaFile = null;
 
         // Initialize the app
         function initApp() {
+            if (!auth) {
+                showNotification('Authentication service unavailable', 'error');
+                return;
+            }
+
             auth.onAuthStateChanged((user) => {
                 if (user) {
                     currentUser = user;
@@ -1189,30 +1216,49 @@
 
         // Load user data
         function loadUserData(userId) {
+            if (!database) {
+                showNotification('Database connection error', 'error');
+                return;
+            }
+
             database.ref('users/' + userId).once('value')
                 .then((snapshot) => {
                     if (snapshot.exists()) {
                         const userData = snapshot.val();
                         currentUser = { ...currentUser, ...userData };
                     }
+                })
+                .catch((error) => {
+                    console.error('Error loading user data:', error);
+                    showNotification('Error loading user data', 'error');
                 });
         }
 
         // Load following users
         function loadFollowingUsers() {
-            if (!currentUser) return;
+            if (!currentUser || !database) return;
             
             database.ref(`following/${currentUser.uid}`).on('value', (snapshot) => {
                 followingUsers = [];
-                snapshot.forEach((childSnapshot) => {
-                    followingUsers.push(childSnapshot.key);
-                });
+                if (snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        followingUsers.push(childSnapshot.key);
+                    });
+                }
                 loadFeedPosts();
+            }, (error) => {
+                console.error('Error loading following users:', error);
+                showNotification('Error loading followed users', 'error');
             });
         }
 
         // Load feed posts
         function loadFeedPosts() {
+            if (!database) {
+                showNotification('Database connection error', 'error');
+                return;
+            }
+
             if (followingUsers.length === 0) {
                 showEmptyFeed();
                 return;
@@ -1223,15 +1269,17 @@
             database.ref('posts').orderByChild('timestamp').once('value')
                 .then((snapshot) => {
                     currentPosts = [];
-                    snapshot.forEach((childSnapshot) => {
-                        const post = childSnapshot.val();
-                        post.id = childSnapshot.key;
-                        
-                        // Only show posts from followed users
-                        if (followingUsers.includes(post.userId) && !isPostExpired(post)) {
-                            currentPosts.push(post);
-                        }
-                    });
+                    if (snapshot.exists()) {
+                        snapshot.forEach((childSnapshot) => {
+                            const post = childSnapshot.val();
+                            post.id = childSnapshot.key;
+                            
+                            // Only show posts from followed users
+                            if (followingUsers.includes(post.userId) && !isPostExpired(post)) {
+                                currentPosts.push(post);
+                            }
+                        });
+                    }
                     
                     // Sort by timestamp (newest first)
                     currentPosts.sort((a, b) => b.timestamp - a.timestamp);
@@ -1239,6 +1287,7 @@
                 })
                 .catch((error) => {
                     console.error('Error loading posts:', error);
+                    showNotification('Error loading posts', 'error');
                     showEmptyFeed();
                 });
         }
@@ -1308,7 +1357,7 @@
                         <div>
                             <i class="fas fa-heart" style="color: #ff375f; margin-right: 4px;"></i>
                             ${post.likes ? Object.keys(post.likes).length : 0}
-                            <i class="fas fa-comment" style="margin-left: 12px; margin-right: 4px;"></i>
+                            <i class="fas fa-comment" style="margin-left: 8px; margin-right: 4px;"></i>
                             ${post.comments ? Object.keys(post.comments).length : 0}
                         </div>
                         <div class="post-type">${post.type === 'status' ? 'Status' : 'Post'}</div>
@@ -1357,6 +1406,11 @@
                 return;
             }
             
+            if (!database) {
+                showNotification('Database connection error', 'error');
+                return;
+            }
+            
             showSearchResults();
             showSearchLoading();
             
@@ -1364,21 +1418,24 @@
             database.ref('users').once('value')
                 .then((snapshot) => {
                     const searchResults = [];
-                    snapshot.forEach((childSnapshot) => {
-                        const user = childSnapshot.val();
-                        user.id = childSnapshot.key;
-                        
-                        if (user.id !== currentUser.uid && 
-                            (user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                             user.name?.toLowerCase().includes(searchTerm.toLowerCase()))) {
-                            searchResults.push(user);
-                        }
-                    });
+                    if (snapshot.exists()) {
+                        snapshot.forEach((childSnapshot) => {
+                            const user = childSnapshot.val();
+                            user.id = childSnapshot.key;
+                            
+                            if (user.id !== currentUser.uid && 
+                                (user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                 user.name?.toLowerCase().includes(searchTerm.toLowerCase()))) {
+                                searchResults.push(user);
+                            }
+                        });
+                    }
                     
                     renderSearchResults(searchResults);
                 })
                 .catch((error) => {
                     console.error('Error searching:', error);
+                    showNotification('Error searching users', 'error');
                     showEmptySearch();
                 });
         }
@@ -1418,7 +1475,6 @@
                 <div class="user-info">
                     <div class="user-name">
                         ${user.username || 'User'}
-                        ${user.verified ? '<i class="fas fa-check-circle" style="color: #00a884; margin-left: 4px;"></i>' : ''}
                     </div>
                     <div class="user-stats">
                         ${user.followers ? Object.keys(user.followers).length : 0} followers • 
@@ -1437,7 +1493,7 @@
 
         // Toggle follow
         function toggleFollow(userId) {
-            if (!currentUser) return;
+            if (!currentUser || !database) return;
             
             const isFollowing = followingUsers.includes(userId);
             const updates = {};
@@ -1462,12 +1518,26 @@
             }
             
             database.ref().update(updates)
+                .then(() => {
+                    showNotification(isFollowing ? 'Unfollowed user' : 'Started following user');
+                })
                 .catch((error) => {
                     console.error('Error updating follow status:', error);
+                    showNotification('Error updating follow status', 'error');
                 });
         }
 
-        // Post creation
+        // Post creation - Instagram Stories style
+        function goToStep(stepNumber) {
+            // Hide all steps
+            document.querySelectorAll('.step').forEach(step => {
+                step.classList.remove('active');
+            });
+            
+            // Show target step
+            document.getElementById(`step${stepNumber}`).classList.add('active');
+        }
+
         function selectPostType(type) {
             currentPostType = type;
             
@@ -1475,105 +1545,111 @@
                 btn.classList.remove('active');
             });
             document.querySelector(`[data-type="${type}"]`).classList.add('active');
-            
-            // Show/hide text-only section for status
-            document.getElementById('textOnlySection').style.display = 
-                type === 'status' ? 'block' : 'none';
         }
 
         // Open post modal
         function openPostModal() {
             document.getElementById('postModal').style.display = 'flex';
-            selectPostType('post');
+            goToStep(1);
+            resetPostForm();
         }
 
         // Close post modal
         function closePostModal() {
             document.getElementById('postModal').style.display = 'none';
-            document.getElementById('postForm').reset();
-            document.getElementById('imagePreview').style.display = 'none';
+            resetPostForm();
         }
 
-        // Handle image preview
-        document.getElementById('postImage').addEventListener('change', function(e) {
+        // Reset post form
+        function resetPostForm() {
+            document.getElementById('postForm').reset();
+            document.getElementById('mediaPreview').style.display = 'none';
+            document.getElementById('mediaUploadArea').classList.remove('has-media');
+            document.getElementById('nextStep1').disabled = true;
+            currentMediaFile = null;
+            currentPostType = 'post';
+            document.querySelectorAll('.post-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector('[data-type="post"]').classList.add('active');
+        }
+
+        // Handle media upload
+        document.getElementById('mediaInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
+                // Check file size (10MB limit)
+                if (file.size > 10 * 1024 * 1024) {
+                    showNotification('File size must be less than 10MB', 'error');
+                    return;
+                }
+                
+                currentMediaFile = file;
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    const preview = document.getElementById('imagePreview');
+                    const preview = document.getElementById('mediaPreview');
                     preview.src = e.target.result;
                     preview.style.display = 'block';
+                    
+                    const uploadArea = document.getElementById('mediaUploadArea');
+                    uploadArea.classList.add('has-media');
+                    uploadArea.innerHTML = '';
+                    uploadArea.appendChild(preview.cloneNode(true));
+                    
+                    document.getElementById('nextStep1').disabled = false;
                 };
                 reader.readAsDataURL(file);
             }
         });
 
-        // Handle background selection
-        document.querySelectorAll('.bg-option').forEach(option => {
-            option.addEventListener('click', function() {
-                document.querySelectorAll('.bg-option').forEach(opt => {
-                    opt.classList.remove('selected');
-                });
-                this.classList.add('selected');
-                selectedBackground = this.getAttribute('data-bg');
-            });
-        });
-
         // Submit post
-        document.getElementById('postForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
+        document.getElementById('createPostBtn').addEventListener('click', async function() {
             const description = document.getElementById('postDescription').value.trim();
-            const privacy = document.getElementById('postPrivacy').value;
-            const imageFile = document.getElementById('postImage').files[0];
             
-            let imageUrl = '';
-            
-            if (imageFile) {
-                // Upload image to ImgBB
-                try {
-                    imageUrl = await uploadToImgBB(imageFile);
-                } catch (error) {
-                    console.error('Error uploading image:', error);
-                    alert('Error uploading image. Please try again.');
-                    return;
-                }
+            if (!currentMediaFile) {
+                showNotification('Please select a media file', 'error');
+                return;
             }
             
-            // Create post object
-            const postId = database.ref().child('posts').push().key;
-            const postData = {
-                id: postId,
-                userId: currentUser.uid,
-                user: {
-                    username: currentUser.username,
-                    profileImage: currentUser.profileImage
-                },
-                type: currentPostType,
-                description: description,
-                imageUrl: imageUrl,
-                background: selectedBackground,
-                privacy: privacy,
-                likes: {},
-                comments: {},
-                views: 0,
-                timestamp: Date.now(),
-                expiresAt: currentPostType === 'status' ? Date.now() + (24 * 60 * 60 * 1000) : null
-            };
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
             
-            // Save to Firebase
-            database.ref(`posts/${postId}`).set(postData)
-                .then(() => {
-                    closePostModal();
-                    loadFeedPosts(); // Reload feed
-                    
-                    // Show success message
-                    showNotification('Post created successfully!');
-                })
-                .catch((error) => {
-                    console.error('Error creating post:', error);
-                    alert('Error creating post. Please try again.');
-                });
+            try {
+                // Upload image to ImgBB
+                const imageUrl = await uploadToImgBB(currentMediaFile);
+                
+                // Create post object
+                const postId = database.ref().child('posts').push().key;
+                const postData = {
+                    id: postId,
+                    userId: currentUser.uid,
+                    user: {
+                        username: currentUser.username,
+                        profileImage: currentUser.profileImage
+                    },
+                    type: currentPostType,
+                    description: description,
+                    imageUrl: imageUrl,
+                    likes: {},
+                    comments: {},
+                    views: 0,
+                    timestamp: Date.now(),
+                    expiresAt: currentPostType === 'status' ? Date.now() + (24 * 60 * 60 * 1000) : null
+                };
+                
+                // Save to Firebase
+                await database.ref(`posts/${postId}`).set(postData);
+                
+                closePostModal();
+                loadFeedPosts(); // Reload feed
+                showNotification('Post created successfully!');
+                
+            } catch (error) {
+                console.error('Error creating post:', error);
+                showNotification('Error creating post. Please try again.', 'error');
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-paper-plane"></i> Create Post';
+            }
         });
 
         // Upload to ImgBB
@@ -1591,7 +1667,7 @@
             if (data.success) {
                 return data.data.url;
             } else {
-                throw new Error('Image upload failed');
+                throw new Error('Image upload failed: ' + data.error.message);
             }
         }
 
@@ -1640,7 +1716,7 @@
         }
 
         function toggleLike() {
-            if (!currentPostDetail || !currentUser) return;
+            if (!currentPostDetail || !currentUser || !database) return;
             
             const postId = currentPostDetail.id;
             const isLiked = currentPostDetail.likes && currentPostDetail.likes[currentUser.uid];
@@ -1667,6 +1743,7 @@
             database.ref().update(updates)
                 .catch((error) => {
                     console.error('Error updating like:', error);
+                    showNotification('Error updating like', 'error');
                 });
         }
 
@@ -1677,7 +1754,7 @@
             database.ref(`posts/${postId}/comments`).orderByChild('timestamp').once('value')
                 .then((snapshot) => {
                     if (!snapshot.exists()) {
-                        commentsList.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">No comments yet</div>';
+                        commentsList.innerHTML = '<div style="text-align: center; color: #888; padding: 16px; font-size: 0.8em;">No comments yet</div>';
                         return;
                     }
                     
@@ -1686,6 +1763,10 @@
                         const commentElement = createCommentElement(comment);
                         commentsList.appendChild(commentElement);
                     });
+                })
+                .catch((error) => {
+                    console.error('Error loading comments:', error);
+                    commentsList.innerHTML = '<div style="text-align: center; color: #888; padding: 16px; font-size: 0.8em;">Error loading comments</div>';
                 });
         }
 
@@ -1708,7 +1789,7 @@
         }
 
         function addComment() {
-            if (!currentPostDetail || !currentUser) return;
+            if (!currentPostDetail || !currentUser || !database) return;
             
             const commentInput = document.getElementById('commentInput');
             const commentText = commentInput.value.trim();
@@ -1747,6 +1828,7 @@
                 })
                 .catch((error) => {
                     console.error('Error adding comment:', error);
+                    showNotification('Error adding comment', 'error');
                 });
         }
 
@@ -1761,24 +1843,38 @@
             saveBtn.innerHTML = saveBtn.classList.contains('saved') ? 
                 '<i class="fas fa-bookmark"></i>' : 
                 '<i class="far fa-bookmark"></i>';
+            showNotification(saveBtn.classList.contains('saved') ? 'Post saved' : 'Post unsaved');
         }
 
-        function sharePost(platform) {
-            // Implement share functionality
-            const postUrl = `${window.location.origin}/post.html?id=${currentPostDetail?.id}`;
+        // Notification system
+        function showNotification(message, type = 'success') {
+            const notificationContainer = document.getElementById('notificationContainer');
+            const notification = document.createElement('div');
+            notification.className = 'notification';
             
-            switch (platform) {
-                case 'copy':
-                    navigator.clipboard.writeText(postUrl);
-                    showNotification('Link copied to clipboard!');
-                    break;
-                case 'whatsapp':
-                    window.open(`https://wa.me/?text=Check out this post: ${postUrl}`, '_blank');
-                    break;
-                case 'twitter':
-                    window.open(`https://twitter.com/intent/tweet?text=Check out this post&url=${postUrl}`, '_blank');
-                    break;
-            }
+            const icon = type === 'error' ? 'exclamation-triangle' : 'check-circle';
+            const iconColor = type === 'error' ? '#ff3b30' : '#00a884';
+            
+            notification.innerHTML = `
+                <div class="notification-icon" style="background: ${iconColor};">
+                    <i class="fas fa-${icon}"></i>
+                </div>
+                <div class="notification-content">
+                    <div class="notification-message">${message}</div>
+                </div>
+                <button class="notification-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            notificationContainer.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 5000);
         }
 
         // Navigation
@@ -1803,6 +1899,7 @@
 
         function showFeedLoading() {
             document.getElementById('feedLoading').style.display = 'block';
+            document.getElementById('emptyFeed').style.display = 'none';
         }
 
         function hideFeedLoading() {
@@ -1811,6 +1908,7 @@
 
         function showSearchLoading() {
             document.getElementById('searchLoading').style.display = 'block';
+            document.getElementById('emptySearch').style.display = 'none';
         }
 
         function hideSearchLoading() {
@@ -1819,7 +1917,8 @@
 
         function showEmptyFeed() {
             document.getElementById('emptyFeed').style.display = 'block';
-            hideFeedLoading();
+            document.getElementById('feedLoading').style.display = 'none';
+            document.getElementById('feedGrid').innerHTML = '';
         }
 
         function hideEmptyFeed() {
@@ -1828,33 +1927,12 @@
 
         function showEmptySearch() {
             document.getElementById('emptySearch').style.display = 'block';
-            hideSearchLoading();
+            document.getElementById('searchLoading').style.display = 'none';
+            document.getElementById('searchResultsList').innerHTML = '';
         }
 
         function hideEmptySearch() {
             document.getElementById('emptySearch').style.display = 'none';
-        }
-
-        function showNotification(message) {
-            // Simple notification implementation
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: #00a884;
-                color: white;
-                padding: 12px 16px;
-                border-radius: 8px;
-                z-index: 1000;
-                animation: slideInRight 0.3s ease;
-            `;
-            notification.textContent = message;
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
         }
 
         // Event listeners
@@ -1873,6 +1951,13 @@
                         overlay.style.display = 'none';
                     }
                 });
+            });
+
+            // Handle media upload area click
+            document.getElementById('mediaUploadArea').addEventListener('click', (e) => {
+                if (!e.target.closest('img')) {
+                    document.getElementById('mediaInput').click();
+                }
             });
         }
 
