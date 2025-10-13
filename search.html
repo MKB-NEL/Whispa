@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>News Feed - Whispa</title>
+    <title>Search - Whispa</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📰</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔍</text></svg>">
     <style>
         * {
             margin: 0;
@@ -131,43 +131,48 @@
             cursor: not-allowed;
         }
 
-        /* Notification Styles */
-        .notification-container {
+        /* iPhone-style Notification */
+        .iphone-notification {
             position: fixed;
-            top: 70px;
-            right: 20px;
-            z-index: 1000;
-            max-width: 300px;
-        }
-
-        .notification {
-            background: #1a1a1a;
-            border: 1px solid #00a884;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 8px;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 30, 30, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 14px;
+            padding: 12px 16px;
+            z-index: 10000;
+            max-width: 350px;
+            width: 90%;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             display: flex;
             align-items: center;
-            gap: 10px;
-            animation: slideInRight 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            gap: 12px;
+            animation: slideDown 0.3s ease;
         }
 
-        @keyframes slideInRight {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
+        @keyframes slideDown {
+            from {
+                transform: translateX(-50%) translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
         }
 
         .notification-icon {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
             background: #00a884;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 0.7em;
+            font-size: 0.8em;
             flex-shrink: 0;
         }
 
@@ -175,24 +180,16 @@
             flex: 1;
         }
 
+        .notification-title {
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
         .notification-message {
             font-size: 0.8em;
+            color: #cccccc;
             line-height: 1.3;
-        }
-
-        .notification-close {
-            background: none;
-            border: none;
-            color: #888888;
-            cursor: pointer;
-            padding: 2px;
-            border-radius: 2px;
-            font-size: 0.8em;
-            transition: all 0.3s ease;
-        }
-
-        .notification-close:hover {
-            color: #ffffff;
         }
 
         /* Content Styles */
@@ -400,264 +397,6 @@
             background: #444444;
         }
 
-        /* Onboarding Modal */
-        .onboarding-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.95);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-            padding: 20px;
-        }
-
-        .onboarding-content {
-            background: #1a1a1a;
-            border-radius: 16px;
-            padding: 30px;
-            max-width: 500px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            border: 1px solid #333333;
-            text-align: center;
-        }
-
-        .onboarding-title {
-            font-size: 1.5em;
-            font-weight: 700;
-            margin-bottom: 8px;
-            color: #00a884;
-        }
-
-        .onboarding-subtitle {
-            font-size: 1em;
-            color: #888888;
-            margin-bottom: 30px;
-        }
-
-        .language-selector {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 30px;
-        }
-
-        .language-btn {
-            padding: 16px;
-            background: #2a2a2a;
-            border: 2px solid #333333;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-        }
-
-        .language-btn:hover {
-            border-color: #00a884;
-        }
-
-        .language-btn.selected {
-            border-color: #00a884;
-            background: rgba(0, 168, 132, 0.1);
-        }
-
-        .language-name {
-            font-weight: 600;
-            font-size: 1.1em;
-            margin-bottom: 4px;
-        }
-
-        .language-native {
-            font-size: 0.9em;
-            color: #888888;
-        }
-
-        .interests-section {
-            margin-bottom: 30px;
-        }
-
-        .interests-title {
-            font-size: 1.2em;
-            font-weight: 600;
-            margin-bottom: 16px;
-            text-align: left;
-        }
-
-        .interests-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .interest-btn {
-            padding: 10px;
-            background: #2a2a2a;
-            border: 2px solid #333333;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.85em;
-            font-weight: 500;
-        }
-
-        .interest-btn:hover {
-            border-color: #00a884;
-        }
-
-        .interest-btn.selected {
-            border-color: #00a884;
-            background: rgba(0, 168, 132, 0.1);
-            color: #00a884;
-        }
-
-        .onboarding-actions {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 0.9em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-primary {
-            background: #00a884;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #008f70;
-        }
-
-        .btn-secondary {
-            background: #2a2a2a;
-            color: #ffffff;
-        }
-
-        .btn-secondary:hover {
-            background: #333333;
-        }
-
-        /* News Detail Modal */
-        .news-detail-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.95);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 20px;
-        }
-
-        .news-detail-content {
-            background: #1a1a1a;
-            border-radius: 16px;
-            max-width: 800px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            border: 1px solid #333333;
-        }
-
-        .news-detail-image {
-            width: 100%;
-            max-height: 400px;
-            object-fit: cover;
-            border-radius: 16px 16px 0 0;
-        }
-
-        .news-detail-body {
-            padding: 24px;
-        }
-
-        .news-detail-source {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-        }
-
-        .news-detail-title {
-            font-size: 1.4em;
-            font-weight: 700;
-            margin-bottom: 16px;
-            line-height: 1.3;
-        }
-
-        .news-detail-description {
-            font-size: 1em;
-            line-height: 1.6;
-            margin-bottom: 20px;
-            color: #cccccc;
-        }
-
-        .news-detail-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #333333;
-        }
-
-        .meta-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.85em;
-            color: #888888;
-        }
-
-        .news-detail-content-full {
-            font-size: 1em;
-            line-height: 1.6;
-            margin-bottom: 20px;
-        }
-
-        .news-detail-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .external-link {
-            background: #00a884;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .external-link:hover {
-            background: #008f70;
-        }
-
         /* Loading Spinner */
         .loading-spinner {
             width: 40px;
@@ -708,27 +447,12 @@
                 grid-template-columns: 1fr;
                 gap: 12px;
             }
-            
-            .language-selector {
-                grid-template-columns: 1fr;
-            }
-            
-            .interests-grid {
-                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            }
-            
-            .onboarding-content {
-                padding: 20px;
-            }
         }
 
         @media (max-width: 480px) {
-            .news-detail-body {
-                padding: 16px;
-            }
-            
-            .news-detail-title {
-                font-size: 1.2em;
+            .iphone-notification {
+                width: 95%;
+                padding: 10px 14px;
             }
         }
     </style>
@@ -757,45 +481,6 @@
             </div>
         </div>
     </header>
-
-    <!-- Notification Container -->
-    <div class="notification-container" id="notificationContainer"></div>
-
-    <!-- Onboarding Modal -->
-    <div class="onboarding-modal" id="onboardingModal">
-        <div class="onboarding-content">
-            <h1 class="onboarding-title">Welcome to Whispa News</h1>
-            <p class="onboarding-subtitle">Personalize your news feed to get the content you care about</p>
-            
-            <div class="language-selector">
-                <div class="language-btn" data-lang="en" onclick="selectLanguage('en')">
-                    <div class="language-name">English</div>
-                    <div class="language-native">English</div>
-                </div>
-                <div class="language-btn" data-lang="fr" onclick="selectLanguage('fr')">
-                    <div class="language-name">French</div>
-                    <div class="language-native">Français</div>
-                </div>
-            </div>
-            
-            <div class="interests-section">
-                <h3 class="interests-title">Select your interests</h3>
-                <p style="color: #888; margin-bottom: 16px; text-align: left; font-size: 0.9em;">
-                    Choose at least 3 topics to personalize your news feed
-                </p>
-                <div class="interests-grid" id="interestsGrid">
-                    <!-- Interests will be populated dynamically -->
-                </div>
-            </div>
-            
-            <div class="onboarding-actions">
-                <button class="btn btn-primary" onclick="savePreferences()" id="savePreferencesBtn" disabled>
-                    <i class="fas fa-check"></i>
-                    Start Reading
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- Content Area -->
     <div class="container">
@@ -840,49 +525,6 @@
         </div>
     </div>
 
-    <!-- News Detail Modal -->
-    <div class="news-detail-modal" id="newsDetailModal" style="display: none;">
-        <div class="news-detail-content">
-            <img id="detailNewsImage" class="news-detail-image" alt="News image">
-            <div class="news-detail-body">
-                <div class="news-detail-source">
-                    <div class="source-name" id="detailNewsSource"></div>
-                    <div class="news-date" id="detailNewsDate"></div>
-                </div>
-                <h1 class="news-detail-title" id="detailNewsTitle"></h1>
-                <div class="news-detail-description" id="detailNewsDescription"></div>
-                
-                <div class="news-detail-meta">
-                    <div class="meta-item">
-                        <i class="fas fa-tags"></i>
-                        <span id="detailNewsCategory"></span>
-                    </div>
-                    <div class="meta-item">
-                        <i class="fas fa-globe"></i>
-                        <span id="detailNewsCountry"></span>
-                    </div>
-                    <div class="meta-item">
-                        <i class="fas fa-language"></i>
-                        <span id="detailNewsLanguage"></span>
-                    </div>
-                </div>
-                
-                <div class="news-detail-content-full" id="detailNewsContent"></div>
-                
-                <div class="news-detail-actions">
-                    <button class="save-btn" id="saveNewsBtn" onclick="toggleSaveNews()">
-                        <i class="far fa-bookmark"></i>
-                        Save Article
-                    </button>
-                    <a href="#" target="_blank" class="external-link" id="detailNewsLink">
-                        <i class="fas fa-external-link-alt"></i>
-                        Read Full Article
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
         // Firebase configuration
         const firebaseConfig = {
@@ -912,20 +554,8 @@
         // Global variables
         let currentUser = null;
         let currentUserData = null;
-        let userPreferences = null;
         let currentNews = [];
-        let currentNewsDetail = null;
         let followingUsers = [];
-        let selectedLanguage = 'en';
-        let selectedInterests = [];
-
-        // Available interests/categories
-        const availableInterests = [
-            'technology', 'business', 'entertainment', 'health', 'science', 
-            'sports', 'politics', 'environment', 'education', 'travel',
-            'food', 'art', 'music', 'gaming', 'fashion',
-            'automotive', 'finance', 'world', 'local', 'breaking-news'
-        ];
 
         // Initialize the app
         function initApp() {
@@ -938,21 +568,14 @@
                 if (user) {
                     currentUser = user;
                     await loadUserData(user.uid);
-                    await loadUserPreferences();
-                    
-                    if (!userPreferences || !userPreferences.completedOnboarding) {
-                        showOnboarding();
-                    } else {
-                        await loadFollowingUsers();
-                        await loadNewsFeed();
-                    }
+                    await loadFollowingUsers();
+                    await loadNewsFeed();
                 } else {
                     window.location.href = 'login.html';
                 }
             });
 
             setupEventListeners();
-            populateInterestsGrid();
         }
 
         // Load user data from Firestore
@@ -970,50 +593,6 @@
             } catch (error) {
                 console.error('Error loading user data:', error);
                 showNotification('Error loading user data', 'error');
-            }
-        }
-
-        // Load user preferences
-        async function loadUserPreferences() {
-            if (!currentUser || !db) return;
-
-            try {
-                const prefsDoc = await db.collection('userPreferences').doc(currentUser.uid).get();
-                if (prefsDoc.exists) {
-                    userPreferences = prefsDoc.data();
-                    selectedLanguage = userPreferences.language || 'en';
-                    selectedInterests = userPreferences.interests || [];
-                }
-            } catch (error) {
-                console.error('Error loading user preferences:', error);
-            }
-        }
-
-        // Save user preferences
-        async function saveUserPreferences() {
-            if (!currentUser || !db) return;
-
-            try {
-                await db.collection('userPreferences').doc(currentUser.uid).set({
-                    language: selectedLanguage,
-                    interests: selectedInterests,
-                    completedOnboarding: true,
-                    lastUpdated: new Date()
-                });
-                
-                userPreferences = {
-                    language: selectedLanguage,
-                    interests: selectedInterests,
-                    completedOnboarding: true
-                };
-                
-                showNotification('Preferences saved successfully!');
-                hideOnboarding();
-                await loadFollowingUsers();
-                await loadNewsFeed();
-            } catch (error) {
-                console.error('Error saving preferences:', error);
-                showNotification('Error saving preferences', 'error');
             }
         }
 
@@ -1035,25 +614,12 @@
             }
         }
 
-        // Load news feed from NewsData.io API
+        // Load news feed from NewsData.io API with Rwanda keyword
         async function loadNewsFeed() {
-            if (!userPreferences || userPreferences.interests.length === 0) {
-                showEmptyNews();
-                return;
-            }
-
             showNewsLoading();
             
             try {
-                // Build query parameters
-                const params = new URLSearchParams({
-                    apikey: NEWS_API_KEY,
-                    language: selectedLanguage,
-                    category: userPreferences.interests.slice(0, 5).join(','),
-                    size: '20'
-                });
-
-                const response = await fetch(`https://newsdata.io/api/1/news?${params}`);
+                const response = await fetch(`https://newsdata.io/api/1/latest?apikey=${NEWS_API_KEY}&q=rwanda&language=en`);
                 const data = await response.json();
 
                 if (data.status === 'success' && data.results) {
@@ -1129,47 +695,13 @@
             return newsCard;
         }
 
-        // Refresh news
-        async function refreshNews() {
-            const refreshBtn = document.getElementById('refreshBtn');
-            refreshBtn.disabled = true;
-            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
-            
-            await loadNewsFeed();
-            
-            refreshBtn.disabled = false;
-            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh News';
-            showNotification('News feed updated!');
-        }
-
         // Open news detail
         function openNewsDetail(article) {
-            currentNewsDetail = article;
-            
-            document.getElementById('detailNewsImage').src = article.image_url || 
-                'https://via.placeholder.com/800x400/1a1a1a/666666?text=No+Image';
-            document.getElementById('detailNewsSource').textContent = article.source_id || 'Unknown Source';
-            document.getElementById('detailNewsDate').textContent = new Date(article.pubDate).toLocaleDateString();
-            document.getElementById('detailNewsTitle').textContent = article.title || 'No title available';
-            document.getElementById('detailNewsDescription').textContent = article.description || 'No description available';
-            document.getElementById('detailNewsCategory').textContent = article.category ? article.category.join(', ') : 'General';
-            document.getElementById('detailNewsCountry').textContent = article.country || 'Unknown';
-            document.getElementById('detailNewsLanguage').textContent = article.language || 'Unknown';
-            document.getElementById('detailNewsContent').textContent = article.content || article.description || 'No content available';
-            document.getElementById('detailNewsLink').href = article.link || '#';
-            
-            document.getElementById('newsDetailModal').style.display = 'flex';
-        }
-
-        // Close news detail
-        function closeNewsDetail() {
-            document.getElementById('newsDetailModal').style.display = 'none';
-            currentNewsDetail = null;
+            window.open(article.link, '_blank');
         }
 
         // Toggle save article
         function toggleSaveArticle(index) {
-            // Implement save functionality
             const saveBtns = document.querySelectorAll('.save-btn');
             if (saveBtns[index]) {
                 saveBtns[index].classList.toggle('saved');
@@ -1182,92 +714,17 @@
             }
         }
 
-        function toggleSaveNews() {
-            const saveBtn = document.getElementById('saveNewsBtn');
-            saveBtn.classList.toggle('saved');
-            saveBtn.innerHTML = saveBtn.classList.contains('saved') ? 
-                '<i class="fas fa-bookmark"></i> Saved' : 
-                '<i class="far fa-bookmark"></i> Save Article';
+        // Refresh news
+        async function refreshNews() {
+            const refreshBtn = document.getElementById('refreshBtn');
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
             
-            showNotification(saveBtn.classList.contains('saved') ? 
-                'Article saved to your collection' : 'Article removed from collection');
-        }
-
-        // Onboarding functions
-        function showOnboarding() {
-            document.getElementById('onboardingModal').style.display = 'flex';
-        }
-
-        function hideOnboarding() {
-            document.getElementById('onboardingModal').style.display = 'none';
-        }
-
-        function selectLanguage(lang) {
-            selectedLanguage = lang;
+            await loadNewsFeed();
             
-            document.querySelectorAll('.language-btn').forEach(btn => {
-                btn.classList.remove('selected');
-            });
-            document.querySelector(`[data-lang="${lang}"]`).classList.add('selected');
-            
-            checkPreferencesReady();
-        }
-
-        function populateInterestsGrid() {
-            const interestsGrid = document.getElementById('interestsGrid');
-            interestsGrid.innerHTML = '';
-            
-            availableInterests.forEach(interest => {
-                const interestBtn = document.createElement('button');
-                interestBtn.className = 'interest-btn';
-                interestBtn.textContent = formatInterestName(interest);
-                interestBtn.onclick = () => toggleInterest(interest);
-                
-                if (selectedInterests.includes(interest)) {
-                    interestBtn.classList.add('selected');
-                }
-                
-                interestsGrid.appendChild(interestBtn);
-            });
-        }
-
-        function formatInterestName(interest) {
-            return interest.split('-')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(' ');
-        }
-
-        function toggleInterest(interest) {
-            const index = selectedInterests.indexOf(interest);
-            
-            if (index > -1) {
-                selectedInterests.splice(index, 1);
-            } else {
-                selectedInterests.push(interest);
-            }
-            
-            // Update UI
-            const interestBtns = document.querySelectorAll('.interest-btn');
-            interestBtns.forEach(btn => {
-                if (btn.textContent === formatInterestName(interest)) {
-                    btn.classList.toggle('selected');
-                }
-            });
-            
-            checkPreferencesReady();
-        }
-
-        function checkPreferencesReady() {
-            const saveBtn = document.getElementById('savePreferencesBtn');
-            saveBtn.disabled = !(selectedLanguage && selectedInterests.length >= 3);
-        }
-
-        function savePreferences() {
-            if (selectedInterests.length < 3) {
-                showNotification('Please select at least 3 interests', 'error');
-                return;
-            }
-            saveUserPreferences();
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh News';
+            showNotification('News feed updated!');
         }
 
         // Search functionality
@@ -1288,7 +745,6 @@
             showSearchLoading();
             
             try {
-                // Search users in Firestore
                 const usersSnapshot = await db.collection('users')
                     .where('username', '>=', searchTerm)
                     .where('username', '<=', searchTerm + '\uf8ff')
@@ -1349,8 +805,7 @@
                         ${user.username || 'User'}
                     </div>
                     <div class="user-stats">
-                        ${user.followersCount || 0} followers • 
-                        ${user.followingCount || 0} following
+                        ${user.followersCount || 0} followers
                     </div>
                     ${user.bio ? `<div class="user-bio">${user.bio}</div>` : ''}
                 </div>
@@ -1425,35 +880,36 @@
             }
         }
 
-        // Notification system
+        // iPhone-style Notification system
         function showNotification(message, type = 'success') {
-            const notificationContainer = document.getElementById('notificationContainer');
+            // Remove existing notifications
+            const existingNotifications = document.querySelectorAll('.iphone-notification');
+            existingNotifications.forEach(notification => notification.remove());
+            
             const notification = document.createElement('div');
-            notification.className = 'notification';
+            notification.className = 'iphone-notification';
             
             const icon = type === 'error' ? 'exclamation-triangle' : 'check-circle';
-            const iconColor = type === 'error' ? '#ff3b30' : '#00a884';
+            const title = type === 'error' ? 'Error' : 'Success';
             
             notification.innerHTML = `
-                <div class="notification-icon" style="background: ${iconColor};">
+                <div class="notification-icon">
                     <i class="fas fa-${icon}"></i>
                 </div>
                 <div class="notification-content">
+                    <div class="notification-title">${title}</div>
                     <div class="notification-message">${message}</div>
                 </div>
-                <button class="notification-close" onclick="this.parentElement.remove()">
-                    <i class="fas fa-times"></i>
-                </button>
             `;
             
-            notificationContainer.appendChild(notification);
+            document.body.appendChild(notification);
             
-            // Auto-remove after 5 seconds
+            // Auto-remove after 3 seconds
             setTimeout(() => {
                 if (notification.parentElement) {
                     notification.remove();
                 }
-            }, 5000);
+            }, 3000);
         }
 
         // Navigation
@@ -1520,26 +976,6 @@
             document.getElementById('searchInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     performSearch();
-                }
-            });
-            
-            // Close modals on overlay click
-            document.querySelectorAll('.news-detail-modal, .onboarding-modal').forEach(modal => {
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal) {
-                        if (modal.id === 'newsDetailModal') {
-                            closeNewsDetail();
-                        } else if (modal.id === 'onboardingModal') {
-                            // Don't close onboarding modal on overlay click
-                        }
-                    }
-                });
-            });
-
-            // Close news detail with Escape key
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') {
-                    closeNewsDetail();
                 }
             });
         }
