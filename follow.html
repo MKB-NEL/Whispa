@@ -206,6 +206,7 @@
             margin: 0 auto;
             color: #cccccc;
             line-height: 1.5;
+            margin-bottom: 20px;
         }
 
         .profile-actions {
@@ -254,6 +255,24 @@
             color: white;
         }
 
+        .message-btn {
+            background: #00a884;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .message-btn:hover {
+            background: #008f70;
+        }
+
         /* Bio Editor */
         .bio-editor {
             display: none;
@@ -285,8 +304,8 @@
             justify-content: flex-end;
         }
 
-        /* Followers Section */
-        .followers-section {
+        /* Suggestions Section */
+        .suggestions-section {
             margin-top: 40px;
         }
 
@@ -297,14 +316,13 @@
             color: #ffffff;
         }
 
-        .followers-grid {
+        .suggestions-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 16px;
-            margin-bottom: 30px;
         }
 
-        .follower-card {
+        .suggestion-card {
             background: #1a1a1a;
             border-radius: 12px;
             padding: 16px;
@@ -314,12 +332,12 @@
             cursor: pointer;
         }
 
-        .follower-card:hover {
+        .suggestion-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 168, 132, 0.2);
         }
 
-        .follower-avatar {
+        .suggestion-avatar {
             width: 60px;
             height: 60px;
             border-radius: 50%;
@@ -335,18 +353,18 @@
             font-size: 1.2em;
         }
 
-        .follower-name {
+        .suggestion-name {
             font-weight: 600;
             margin-bottom: 4px;
         }
 
-        .follower-stats {
+        .suggestion-stats {
             font-size: 0.8em;
             color: #888888;
             margin-bottom: 8px;
         }
 
-        .follower-bio {
+        .suggestion-bio {
             font-size: 0.8em;
             color: #cccccc;
             line-height: 1.3;
@@ -381,17 +399,6 @@
 
         .follow-btn.following:hover {
             background: #444444;
-        }
-
-        /* Suggestions Section */
-        .suggestions-section {
-            margin-top: 40px;
-        }
-
-        .suggestions-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 16px;
         }
 
         /* Empty States */
@@ -434,7 +441,6 @@
                 gap: 20px;
             }
             
-            .followers-grid,
             .suggestions-grid {
                 grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
                 gap: 12px;
@@ -521,28 +527,9 @@
                 </div>
             </div>
 
-            <!-- Followers Section -->
-            <div class="followers-section">
-                <h2 class="section-title">Followers</h2>
-                
-                <div class="followers-grid" id="followersGrid">
-                    <!-- Followers will be dynamically loaded here -->
-                </div>
-                
-                <div class="loading-spinner" id="followersLoading" style="display: none;"></div>
-                
-                <div class="empty-state" id="emptyFollowers" style="display: none;">
-                    <div class="empty-state-icon">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <h3>No followers yet</h3>
-                    <p>When someone follows you, they'll appear here.</p>
-                </div>
-            </div>
-
             <!-- Suggestions Section -->
             <div class="suggestions-section">
-                <h2 class="section-title">Suggestions for you</h2>
+                <h2 class="section-title">People You May Know</h2>
                 
                 <div class="suggestions-grid" id="suggestionsGrid">
                     <!-- Suggestions will be dynamically loaded here -->
@@ -591,7 +578,6 @@
         let profileUserData = null;
         let isOwnProfile = false;
         let followingUsers = [];
-        let followers = [];
         let suggestions = [];
 
         // Initialize the app
@@ -617,7 +603,6 @@
                         profileUser = user;
                         profileUserData = currentUserData;
                         renderProfile();
-                        await loadFollowers();
                         await loadSuggestions();
                     } else {
                         await loadProfileUser(profileUserId);
@@ -652,7 +637,6 @@
                 if (userDoc.exists) {
                     profileUserData = userDoc.data();
                     renderProfile();
-                    await loadFollowers();
                     await loadSuggestions();
                 } else {
                     showNotification('User not found', 'error');
@@ -679,44 +663,6 @@
             } catch (error) {
                 console.error('Error loading following users:', error);
                 followingUsers = [];
-            }
-        }
-
-        // Load followers for the profile user
-        async function loadFollowers() {
-            if (!profileUserData || !db) return;
-            
-            showFollowersLoading();
-            
-            try {
-                const followersDoc = await db.collection('followers').doc(isOwnProfile ? currentUser.uid : getProfileUserId()).get();
-                
-                if (followersDoc.exists) {
-                    const data = followersDoc.data();
-                    const followerIds = data.followers || [];
-                    
-                    // Load follower details
-                    followers = [];
-                    for (const followerId of followerIds) {
-                        const userDoc = await db.collection('users').doc(followerId).get();
-                        if (userDoc.exists) {
-                            const userData = userDoc.data();
-                            followers.push({
-                                id: followerId,
-                                ...userData
-                            });
-                        }
-                    }
-                    
-                    renderFollowers();
-                } else {
-                    followers = [];
-                    renderFollowers();
-                }
-            } catch (error) {
-                console.error('Error loading followers:', error);
-                showNotification('Error loading followers', 'error');
-                showEmptyFollowers();
             }
         }
 
@@ -803,7 +749,17 @@
             profileName.textContent = profileUserData.username || 'User';
             
             // Set followers count
-            followersCount.textContent = profileUserData.followersCount || followers.length || 0;
+            if (isOwnProfile) {
+                // For own profile, get actual followers count
+                getFollowersCount(currentUser.uid).then(count => {
+                    followersCount.textContent = count;
+                });
+            } else {
+                // For other profiles, use the stored count or calculate
+                getFollowersCount(getProfileUserId()).then(count => {
+                    followersCount.textContent = count;
+                });
+            }
             
             // Set bio
             if (profileUserData.bio) {
@@ -827,55 +783,29 @@
                         <i class="fas ${isFollowing ? 'fa-user-check' : 'fa-user-plus'}"></i>
                         ${isFollowing ? 'Following' : 'Follow'}
                     </button>
+                    <button class="message-btn" onclick="startChat()">
+                        <i class="fas fa-comment"></i>
+                        Message
+                    </button>
                 `;
             }
         }
 
-        // Render followers
-        function renderFollowers() {
-            const followersGrid = document.getElementById('followersGrid');
-            followersGrid.innerHTML = '';
+        // Get followers count for a user
+        async function getFollowersCount(userId) {
+            if (!db || !userId) return 0;
             
-            hideFollowersLoading();
-            
-            if (followers.length === 0) {
-                showEmptyFollowers();
-                return;
+            try {
+                const followersDoc = await db.collection('followers').doc(userId).get();
+                if (followersDoc.exists) {
+                    const data = followersDoc.data();
+                    return data.followers ? data.followers.length : 0;
+                }
+                return 0;
+            } catch (error) {
+                console.error('Error getting followers count:', error);
+                return 0;
             }
-            
-            hideEmptyFollowers();
-            
-            followers.forEach(follower => {
-                const followerElement = createFollowerElement(follower);
-                followersGrid.appendChild(followerElement);
-            });
-        }
-
-        // Create follower element
-        function createFollowerElement(follower) {
-            const followerDiv = document.createElement('div');
-            followerDiv.className = 'follower-card';
-            followerDiv.onclick = () => openUserProfile(follower.id);
-            
-            const isFollowing = followingUsers.includes(follower.id);
-            const showFollowButton = !isOwnProfile && follower.id !== currentUser.uid;
-            
-            followerDiv.innerHTML = `
-                <div class="follower-avatar" style="${follower.profileImage ? `background-image: url(${follower.profileImage})` : ''}">
-                    ${follower.profileImage ? '' : (follower.username ? follower.username.charAt(0).toUpperCase() : 'U')}
-                </div>
-                <div class="follower-name">${follower.username || 'User'}</div>
-                <div class="follower-stats">${follower.followersCount || 0} followers</div>
-                ${follower.bio ? `<div class="follower-bio">${follower.bio}</div>` : ''}
-                ${showFollowButton ? `
-                    <button class="follow-btn ${isFollowing ? 'following' : ''}" 
-                            onclick="event.stopPropagation(); toggleFollowUser('${follower.id}')">
-                        ${isFollowing ? 'Following' : 'Follow'}
-                    </button>
-                ` : ''}
-            `;
-            
-            return followerDiv;
         }
 
         // Render suggestions
@@ -901,18 +831,26 @@
         // Create suggestion element
         function createSuggestionElement(suggestion) {
             const suggestionDiv = document.createElement('div');
-            suggestionDiv.className = 'follower-card';
+            suggestionDiv.className = 'suggestion-card';
             suggestionDiv.onclick = () => openUserProfile(suggestion.id);
             
             const isFollowing = followingUsers.includes(suggestion.id);
             
+            // Get followers count for this user
+            getFollowersCount(suggestion.id).then(followersCount => {
+                const statsElement = suggestionDiv.querySelector('.suggestion-stats');
+                if (statsElement) {
+                    statsElement.textContent = `${followersCount} followers`;
+                }
+            });
+            
             suggestionDiv.innerHTML = `
-                <div class="follower-avatar" style="${suggestion.profileImage ? `background-image: url(${suggestion.profileImage})` : ''}">
+                <div class="suggestion-avatar" style="${suggestion.profileImage ? `background-image: url(${suggestion.profileImage})` : ''}">
                     ${suggestion.profileImage ? '' : (suggestion.username ? suggestion.username.charAt(0).toUpperCase() : 'U')}
                 </div>
-                <div class="follower-name">${suggestion.username || 'User'}</div>
-                <div class="follower-stats">${suggestion.followersCount || 0} followers</div>
-                ${suggestion.bio ? `<div class="follower-bio">${suggestion.bio}</div>` : ''}
+                <div class="suggestion-name">${suggestion.username || 'User'}</div>
+                <div class="suggestion-stats">Loading...</div>
+                ${suggestion.bio ? `<div class="suggestion-bio">${suggestion.bio}</div>` : ''}
                 <button class="follow-btn ${isFollowing ? 'following' : ''}" 
                         onclick="event.stopPropagation(); toggleFollowUser('${suggestion.id}')">
                     ${isFollowing ? 'Following' : 'Follow'}
@@ -927,6 +865,11 @@
             if (!currentUser || !db || isOwnProfile) return;
             
             const profileUserId = getProfileUserId();
+            if (!profileUserId) {
+                showNotification('Error: Invalid user ID', 'error');
+                return;
+            }
+            
             const isFollowing = followingUsers.includes(profileUserId);
             
             try {
@@ -941,11 +884,6 @@
                     });
                     
                     followingUsers = followingUsers.filter(id => id !== profileUserId);
-                    
-                    // Update followers count
-                    if (profileUserData.followersCount > 0) {
-                        profileUserData.followersCount--;
-                    }
                 } else {
                     // Follow
                     await db.collection('following').doc(currentUser.uid).set({
@@ -957,9 +895,6 @@
                     }, { merge: true });
                     
                     followingUsers.push(profileUserId);
-                    
-                    // Update followers count
-                    profileUserData.followersCount = (profileUserData.followersCount || 0) + 1;
                     
                     // Send notification
                     const notification = {
@@ -985,7 +920,7 @@
 
         // Toggle follow for a specific user
         async function toggleFollowUser(userId) {
-            if (!currentUser || !db) return;
+            if (!currentUser || !db || !userId) return;
             
             const isFollowing = followingUsers.includes(userId);
             
@@ -1032,6 +967,54 @@
             } catch (error) {
                 console.error('Error updating follow status:', error);
                 showNotification('Error updating follow status', 'error');
+            }
+        }
+
+        // Start chat with profile user
+        async function startChat() {
+            if (isOwnProfile) return;
+            
+            const profileUserId = getProfileUserId();
+            if (!profileUserId) return;
+            
+            try {
+                // Check if chat already exists between users
+                const chatsSnapshot = await db.collection('chats')
+                    .where('isGroup', '==', false)
+                    .where(`members.${currentUser.uid}`, '==', true)
+                    .where(`members.${profileUserId}`, '==', true)
+                    .get();
+                
+                let chatId;
+                
+                if (!chatsSnapshot.empty) {
+                    // Use existing chat
+                    chatId = chatsSnapshot.docs[0].id;
+                } else {
+                    // Create new chat
+                    const chatData = {
+                        name: profileUserData.username || 'User',
+                        isGroup: false,
+                        members: {
+                            [currentUser.uid]: true,
+                            [profileUserId]: true
+                        },
+                        createdBy: currentUser.uid,
+                        createdAt: new Date(),
+                        lastActivity: new Date(),
+                        lastMessage: 'Chat started'
+                    };
+                    
+                    const chatRef = await db.collection('chats').add(chatData);
+                    chatId = chatRef.id;
+                }
+                
+                // Redirect to home.html with chat opened
+                window.location.href = `home.html?chat=${chatId}`;
+                
+            } catch (error) {
+                console.error('Error starting chat:', error);
+                showNotification('Error starting chat', 'error');
             }
         }
 
@@ -1104,7 +1087,14 @@
 
         // Helper functions
         function getProfileUserId() {
-            return isOwnProfile ? currentUser.uid : (profileUserData ? Object.keys(profileUserData).includes('id') ? profileUserData.id : null : null);
+            if (isOwnProfile) {
+                return currentUser.uid;
+            } else if (profileUserData) {
+                // Get the user ID from URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get('id');
+            }
+            return null;
         }
 
         function openUserProfile(userId) {
@@ -1125,25 +1115,6 @@
         }
 
         // UI helpers
-        function showFollowersLoading() {
-            document.getElementById('followersLoading').style.display = 'block';
-            document.getElementById('emptyFollowers').style.display = 'none';
-        }
-
-        function hideFollowersLoading() {
-            document.getElementById('followersLoading').style.display = 'none';
-        }
-
-        function showEmptyFollowers() {
-            document.getElementById('emptyFollowers').style.display = 'block';
-            document.getElementById('followersLoading').style.display = 'none';
-            document.getElementById('followersGrid').innerHTML = '';
-        }
-
-        function hideEmptyFollowers() {
-            document.getElementById('emptyFollowers').style.display = 'none';
-        }
-
         function showSuggestionsLoading() {
             document.getElementById('suggestionsLoading').style.display = 'block';
             document.getElementById('emptySuggestions').style.display = 'none';
