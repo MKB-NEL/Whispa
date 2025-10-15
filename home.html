@@ -11,9 +11,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-    <!-- Emoji Picker -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.12.0/index.css" />
-    <script src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.12.0/index.js"></script>
     <style>
         * {
             margin: 0;
@@ -583,10 +580,83 @@
             margin-bottom: 10px;
             z-index: 1000;
             display: none;
+            background: #1a1a1a;
+            border: 1px solid #333333;
+            border-radius: 12px;
+            padding: 15px;
+            width: 350px;
+            height: 400px;
+            overflow: hidden;
         }
 
         .emoji-picker-container.show {
             display: block;
+        }
+
+        .emoji-search {
+            width: 100%;
+            padding: 10px;
+            background: #2a2a2a;
+            border: 1px solid #333333;
+            border-radius: 8px;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .emoji-search:focus {
+            outline: none;
+            border-color: #00a884;
+        }
+
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 8px;
+            height: 300px;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+
+        .emoji-item {
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 1.2em;
+            transition: all 0.2s ease;
+        }
+
+        .emoji-item:hover {
+            background: #2a2a2a;
+            transform: scale(1.1);
+        }
+
+        .emoji-categories {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #333333;
+            padding-bottom: 10px;
+        }
+
+        .emoji-category {
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 0.8em;
+            transition: all 0.2s ease;
+        }
+
+        .emoji-category.active {
+            background: #00a884;
+            color: white;
+        }
+
+        .emoji-category:hover {
+            background: #2a2a2a;
         }
 
         /* Notifications */
@@ -826,9 +896,22 @@
                     <i class="fas fa-paper-plane"></i>
                 </button>
                 
-                <!-- Emoji Picker -->
+                <!-- Custom Emoji Picker -->
                 <div class="emoji-picker-container" id="emojiPickerContainer">
-                    <emoji-picker id="emojiPicker"></emoji-picker>
+                    <input type="text" class="emoji-search" placeholder="Search emojis..." id="emojiSearch">
+                    <div class="emoji-categories" id="emojiCategories">
+                        <div class="emoji-category active" data-category="all">All</div>
+                        <div class="emoji-category" data-category="smileys">😊</div>
+                        <div class="emoji-category" data-category="people">👋</div>
+                        <div class="emoji-category" data-category="nature">🐻</div>
+                        <div class="emoji-category" data-category="food">🍕</div>
+                        <div class="emoji-category" data-category="activities">⚽</div>
+                        <div class="emoji-category" data-category="objects">💡</div>
+                        <div class="emoji-category" data-category="symbols">❤️</div>
+                    </div>
+                    <div class="emoji-grid" id="emojiGrid">
+                        <!-- Emojis will be populated here -->
+                    </div>
                 </div>
             </div>
 
@@ -894,6 +977,18 @@
         let followingUsers = [];
         let followers = [];
 
+        // Emoji data
+        const emojis = {
+            all: ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "👹", "👺", "🤡", "💩", "👻", "💀", "☠️", "👽", "👾", "🤖", "🎃", "😺", "😸", "😹", "😻", "😼", "😽", "🙀", "😿", "😾"],
+            smileys: ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "👹", "👺", "🤡", "💩", "👻", "💀", "☠️", "👽", "👾", "🤖", "🎃", "😺", "😸", "😹", "😻", "😼", "😽", "🙀", "😿", "😾"],
+            people: ["👋", "🤚", "🖐️", "✋", "🖖", "👌", "🤌", "🤏", "✌️", "🤞", "🤟", "🤘", "🤙", "👈", "👉", "👆", "🖕", "👇", "☝️", "👍", "👎", "✊", "👊", "🤛", "🤜", "👏", "🙌", "👐", "🤲", "🤝", "🙏", "✍️", "💅", "🤳", "💪", "🦾", "🦿", "🦵", "🦶", "👂", "🦻", "👃", "🧠", "🦷", "🦴", "👀", "👁️", "👅", "👄", "👶", "🧒", "👦", "👧", "🧑", "👱", "👨", "🧔", "👨‍🦰", "👨‍🦱", "👨‍🦳", "👨‍🦲", "👩", "👩‍🦰", "👩‍🦱", "👩‍🦳", "👩‍🦲", "🧓", "👴", "👵", "🙍", "🙎", "🙅", "🙆", "💁", "🙋", "🧏", "🙇", "🤦", "🤷", "👮", "🕵️", "💂", "👷", "🤴", "👸", "👳", "👲", "🧕", "🤵", "👰", "🤰", "🤱", "👼", "🎅", "🤶", "🦸", "🦹", "🧙", "🧚", "🧛", "🧜", "🧝", "🧞", "🧟", "💆", "💇", "🚶", "🧍", "🧎", "🏃", "💃", "🕺", "🕴️", "👯", "🧖", "🧗", "🤺", "🏇", "⛷️", "🏂", "🏌️", "🏄", "🚣", "🏊", "⛹️", "🏋️", "🚴", "🚵", "🤸", "🤼", "🤽", "🤾", "🤹", "🧘", "🛀", "🛌", "👭", "👫", "👬", "💏", "💑", "👪"],
+            nature: ["🐵", "🐒", "🦍", "🦧", "🐶", "🐕", "🦮", "🐩", "🐺", "🦊", "🦝", "🐱", "🐈", "🦁", "🐯", "🐅", "🐆", "🐴", "🐎", "🦄", "🦓", "🦌", "🐮", "🐂", "🐃", "🐄", "🐷", "🐖", "🐗", "🐽", "🐏", "🐑", "🐐", "🐪", "🐫", "🦙", "🦒", "🐘", "🦏", "🦛", "🐭", "🐁", "🐀", "🐹", "🐰", "🐇", "🐿️", "🦔", "🦇", "🐻", "🐨", "🐼", "🦥", "🦦", "🦨", "🦘", "🦡", "🐾", "🦃", "🐔", "🐓", "🐣", "🐤", "🐥", "🐦", "🐧", "🕊️", "🦅", "🦆", "🦢", "🦉", "🦩", "🦚", "🦜", "🐸", "🐊", "🐢", "🦎", "🐍", "🐲", "🐉", "🦕", "🦖", "🐳", "🐋", "🐬", "🐟", "🐠", "🐡", "🦈", "🐙", "🐚", "🐌", "🦋", "🐛", "🐜", "🐝", "🐞", "🦗", "🕷️", "🕸️", "🦂", "🦟", "🦠", "💐", "🌸", "💮", "🏵️", "🌹", "🥀", "🌺", "🌻", "🌼", "🌷", "🌱", "🌲", "🌳", "🌴", "🌵", "🌾", "🌿", "☘️", "🍀", "🍁", "🍂", "🍃"],
+            food: ["🍇", "🍈", "🍉", "🍊", "🍋", "🍌", "🍍", "🥭", "🍎", "🍏", "🍐", "🍑", "🍒", "🍓", "🥝", "🍅", "🥥", "🥑", "🍆", "🥔", "🥕", "🌽", "🌶️", "🥒", "🥬", "🥦", "🧄", "🧅", "🍄", "🥜", "🌰", "🍞", "🥐", "🥖", "🥨", "🥯", "🥞", "🧇", "🧀", "🍖", "🍗", "🥩", "🥓", "🍔", "🍟", "🍕", "🌭", "🥪", "🌮", "🌯", "🥙", "🧆", "🥚", "🍳", "🥘", "🍲", "🥣", "🥗", "🍿", "🧈", "🧂", "🥫", "🍱", "🍘", "🍙", "🍚", "🍛", "🍜", "🍝", "🍠", "🍢", "🍣", "🍤", "🍥", "🥮", "🍡", "🥟", "🥠", "🥡", "🦀", "🦞", "🦐", "🦑", "🦪", "🍦", "🍧", "🍨", "🍩", "🍪", "🎂", "🍰", "🧁", "🥧", "🍫", "🍬", "🍭", "🍮", "🍯", "🍼", "🥛", "☕", "🍵", "🍶", "🍾", "🍷", "🍸", "🍹", "🍺", "🍻", "🥂", "🥃", "🥤", "🧃", "🧉", "🧊", "🥢", "🍽️", "🍴", "🥄", "🔪", "🏺"],
+            activities: ["⚽", "🏀", "🏈", "⚾", "🥎", "🎾", "🏐", "🏉", "🥏", "🎱", "🪀", "🏓", "🏸", "🏒", "🏑", "🥍", "🏏", "🪁", "🥅", "⛳", "🪃", "🏹", "🎣", "🤿", "🥊", "🥋", "🎽", "🛹", "🛷", "⛸️", "🥌", "🎿", "⛷️", "🏂", "🪂", "🏋️", "🤼", "🤸", "⛹️", "🤾", "🏌️", "🏇", "🧘", "🏄", "🏊", "🤽", "🚣", "🧗", "🚵", "🚴", "🏆", "🥇", "🥈", "🥉", "🏅", "🎖️", "🏵️", "🎗️", "🎫", "🎟️", "🎪", "🤹", "🎭", "🩰", "🎨", "🎬", "🎤", "🎧", "🎼", "🎹", "🥁", "🪘", "🎷", "🎺", "🎸", "🪕", "🎻", "🎲", "♟️", "🎯", "🎳", "🎮", "🎰", "🧩"],
+            objects: ["⌚", "📱", "📲", "💻", "⌨️", "🖥️", "🖨️", "🖱️", "🖲️", "🕹️", "🗜️", "💽", "💾", "💿", "📀", "📼", "📷", "📸", "📹", "🎥", "📽️", "🎞️", "📞", "☎️", "📟", "📠", "📺", "📻", "🎙️", "🎚️", "🎛️", "🧭", "⏱️", "⏲️", "⏰", "🕰️", "⌛", "⏳", "📡", "🔋", "🔌", "💡", "🔦", "🕯️", "🪔", "🧯", "🛢️", "💸", "💵", "💴", "💶", "💷", "💰", "💳", "💎", "⚖️", "🧰", "🔧", "🔨", "⚒️", "🛠️", "⛏️", "🔩", "⚙️", "🧱", "⛓️", "🧲", "🔫", "💣", "🧨", "🪓", "🔪", "🗡️", "⚔️", "🛡️", "🚬", "⚰️", "⚱️", "🏺", "🔮", "📿", "🧿", "💈", "⚗️", "🔭", "🔬", "🕳️", "🩹", "🩺", "💊", "💉", "🩸", "🧬", "🦠", "🧫", "🧪", "🌡️", "🧹", "🧺", "🧻", "🚽", "🚰", "🚿", "🛁", "🛀", "🧼", "🪒", "🧽", "🧴", "🛎️", "🔑", "🗝️", "🚪", "🪑", "🛋️", "🛏️", "🛌", "🧸", "🖼️", "🛍️", "🛒", "🎁", "🎈", "🎏", "🎀", "🎊", "🎉", "🎎", "🏮", "🎐", "✉️", "📩", "📨", "📧", "💌", "📥", "📤", "📦", "🏷️", "📪", "📫", "📬", "📭", "📮", "📯", "📜", "📃", "📄", "📑", "🧾", "📊", "📈", "📉", "🗒️", "🗓️", "📆", "📅", "🗑️", "📇", "🗃️", "🗳️", "🗄️", "📋", "📁", "📂", "🗂️", "🗞️", "📰", "📓", "📔", "📒", "📕", "📗", "📘", "📙", "📚", "📖", "🔖", "🧷", "🔗", "📎", "🖇️", "📐", "📏", "🧮", "📌", "📍", "✂️", "🖊️", "🖋️", "✒️", "🖌️", "🖍️", "📝", "✏️", "🔍", "🔎", "🔏", "🔐", "🔒", "🔓"],
+            symbols: ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝", "💟", "☮️", "✝️", "☪️", "🕉️", "☸️", "✡️", "🔯", "🕎", "☯️", "☦️", "🛐", "⛎", "♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓", "🆔", "⚛️", "🉑", "☢️", "☣️", "📴", "📳", "🈶", "🈚", "🈸", "🈺", "🈷️", "✴️", "🆚", "💮", "🉐", "㊙️", "㊗️", "🈴", "🈵", "🈹", "🈲", "🅰️", "🅱️", "🆎", "🆑", "🅾️", "🆘", "❌", "⭕", "🛑", "⛔", "📛", "🚫", "💯", "💢", "♨️", "🚷", "🚯", "🚳", "🚱", "🔞", "📵", "🚭", "❗", "❕", "❓", "❔", "‼️", "⁉️", "🔅", "🔆", "〽️", "⚠️", "🚸", "🔱", "⚜️", "🔰", "♻️", "✅", "🈯", "💹", "❇️", "✳️", "❎", "🌐", "💠", "Ⓜ️", "🌀", "💤", "🏧", "🚾", "♿", "🅿️", "🈳", "🈂️", "🛂", "🛃", "🛄", "🛅", "🚹", "🚺", "🚼", "🚻", "🚮", "🎦", "📶", "🈁", "🔣", "ℹ️", "🔤", "🔡", "🔠", "🆖", "🆗", "🆙", "🆒", "🆕", "🆓", "0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟", "🔢", "#️⃣", "*️⃣", "⏏️", "▶️", "⏸️", "⏯️", "⏹️", "⏺️", "⏭️", "⏮️", "⏩", "⏪", "⏫", "⏬", "◀️", "🔼", "🔽", "➡️", "⬅️", "⬆️", "⬇️", "↗️", "↘️", "↙️", "↖️", "↕️", "↔️", "↪️", "↩️", "⤴️", "⤵️", "🔀", "🔁", "🔂", "🔄", "🔃", "🎵", "🎶", "➕", "➖", "➗", "✖️", "♾️", "💲", "💱", "™️", "©️", "®️", "〰️", "➰", "➿", "🔚", "🔙", "🔛", "🔝", "🔜", "✔️", "☑️", "🔘", "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "⚫", "⚪", "🟤", "🔺", "🔻", "🔸", "🔹", "🔶", "🔷", "🔳", "🔲", "▪️", "▫️", "◾", "◽", "◼️", "◻️", "🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "⬛", "⬜", "🟫", "🔈", "🔇", "🔉", "🔊", "🔔", "🔕", "📣", "📢", "👁️‍🗨️", "💬", "💭", "🗯️", "♠️", "♣️", "♥️", "♦️", "🃏", "🎴", "🀄", "🕐", "🕑", "🕒", "🕓", "🕔", "🕕", "🕖", "🕗", "🕘", "🕙", "🕚", "🕛", "🕜", "🕝", "🕞", "🕟", "🕠", "🕡", "🕢", "🕣", "🕤", "🕥", "🕦", "🕧"]
+        };
+
         // DOM Elements
         const userAvatar = document.getElementById('userAvatar');
         const userName = document.getElementById('userName');
@@ -916,7 +1011,9 @@
         const chatMenu = document.getElementById('chatMenu');
         const emojiBtn = document.getElementById('emojiBtn');
         const emojiPickerContainer = document.getElementById('emojiPickerContainer');
-        const emojiPicker = document.getElementById('emojiPicker');
+        const emojiSearch = document.getElementById('emojiSearch');
+        const emojiCategories = document.getElementById('emojiCategories');
+        const emojiGrid = document.getElementById('emojiGrid');
         const followPrompt = document.getElementById('followPrompt');
         const followPromptBtn = document.getElementById('followPromptBtn');
         const pendingRequest = document.getElementById('pendingRequest');
@@ -964,6 +1061,9 @@
                         // Check for URL parameters
                         checkUrlParameters();
                         
+                        // Initialize emoji picker
+                        initEmojiPicker();
+                        
                         hideLoading();
                     }).catch(error => {
                         console.error('Error loading user data:', error);
@@ -978,6 +1078,76 @@
             setupEventListeners();
         }
 
+        // Initialize emoji picker
+        function initEmojiPicker() {
+            // Populate emoji grid
+            renderEmojis('all');
+            
+            // Set up category switching
+            emojiCategories.addEventListener('click', (e) => {
+                if (e.target.classList.contains('emoji-category')) {
+                    // Remove active class from all categories
+                    document.querySelectorAll('.emoji-category').forEach(cat => {
+                        cat.classList.remove('active');
+                    });
+                    // Add active class to clicked category
+                    e.target.classList.add('active');
+                    // Render emojis for selected category
+                    const category = e.target.getAttribute('data-category');
+                    renderEmojis(category);
+                }
+            });
+            
+            // Set up emoji search
+            emojiSearch.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                filterEmojis(searchTerm);
+            });
+            
+            // Set up emoji selection
+            emojiGrid.addEventListener('click', (e) => {
+                if (e.target.classList.contains('emoji-item')) {
+                    const emoji = e.target.textContent;
+                    messageInput.value += emoji;
+                    emojiPickerContainer.classList.remove('show');
+                    messageInput.focus();
+                }
+            });
+        }
+
+        // Render emojis for a category
+        function renderEmojis(category) {
+            emojiGrid.innerHTML = '';
+            const categoryEmojis = emojis[category] || emojis.all;
+            
+            categoryEmojis.forEach(emoji => {
+                const emojiItem = document.createElement('div');
+                emojiItem.className = 'emoji-item';
+                emojiItem.textContent = emoji;
+                emojiItem.title = emoji;
+                emojiGrid.appendChild(emojiItem);
+            });
+        }
+
+        // Filter emojis based on search term
+        function filterEmojis(searchTerm) {
+            const allEmojis = emojis.all;
+            const filteredEmojis = allEmojis.filter(emoji => {
+                // Simple search - in a real app you'd want proper emoji names
+                return emoji.includes(searchTerm);
+            });
+            
+            emojiGrid.innerHTML = '';
+            filteredEmojis.forEach(emoji => {
+                const emojiItem = document.createElement('div');
+                emojiItem.className = 'emoji-item';
+                emojiItem.textContent = emoji;
+                emojiItem.title = emoji;
+                emojiGrid.appendChild(emojiItem);
+            });
+        }
+
+        // [Rest of the code remains exactly the same as previous version...]
         // Check URL parameters for chat opening
         function checkUrlParameters() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -1482,13 +1652,6 @@
             // Close emoji picker when clicking outside
             document.addEventListener('click', () => {
                 emojiPickerContainer.classList.remove('show');
-            });
-
-            // Emoji selection
-            emojiPicker.addEventListener('emoji-click', (event) => {
-                messageInput.value += event.detail.unicode;
-                emojiPickerContainer.classList.remove('show');
-                messageInput.focus();
             });
 
             // Follow prompt button
