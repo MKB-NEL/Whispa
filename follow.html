@@ -9,6 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👤</text></svg>">
     <style>
         * {
@@ -214,6 +215,7 @@
             justify-content: center;
             gap: 12px;
             margin-top: 20px;
+            flex-wrap: wrap;
         }
 
         .btn {
@@ -224,6 +226,9 @@
             cursor: pointer;
             transition: all 0.3s ease;
             border: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .btn-primary {
@@ -356,6 +361,7 @@
         .suggestion-name {
             font-weight: 600;
             margin-bottom: 4px;
+            font-size: 0.95em;
         }
 
         .suggestion-stats {
@@ -447,7 +453,13 @@
             }
             
             .profile-actions {
-                flex-wrap: wrap;
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 200px;
+                justify-content: center;
             }
         }
 
@@ -469,6 +481,10 @@
             .iphone-notification {
                 width: 95%;
                 padding: 10px 14px;
+            }
+            
+            .suggestions-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -553,6 +569,7 @@
         const firebaseConfig = {
             apiKey: "AIzaSyDLggigD7p7_-1amZKi91MVCZbLNnsQ6JE",
             authDomain: "whispa-d453f.firebaseapp.com",
+            databaseURL: "https://whispa-d453f-default-rtdb.firebaseio.com",
             projectId: "whispa-d453f",
             storageBucket: "whispa-d453f.firebasestorage.app",
             messagingSenderId: "315118383529",
@@ -561,11 +578,12 @@
         };
 
         // Initialize Firebase
-        let db, auth;
+        let db, auth, database;
         try {
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
             auth = firebase.auth();
+            database = firebase.database();
         } catch (error) {
             console.error('Firebase initialization error:', error);
             showNotification('Error connecting to server. Please refresh the page.', 'error');
@@ -578,6 +596,7 @@
         let profileUserData = null;
         let isOwnProfile = false;
         let followingUsers = [];
+        let followers = [];
         let suggestions = [];
 
         // Initialize the app
@@ -592,6 +611,7 @@
                     currentUser = user;
                     await loadUserData(user.uid);
                     await loadFollowingUsers();
+                    await loadFollowers();
                     
                     // Get profile user ID from URL parameters
                     const urlParams = new URLSearchParams(window.location.search);
@@ -613,29 +633,50 @@
             });
         }
 
-        // Load current user data
+        // Load current user data from Realtime Database
         async function loadUserData(userId) {
-            if (!db) return;
+            if (!database) return;
             
-            try {
-                const userDoc = await db.collection('users').doc(userId).get();
-                if (userDoc.exists) {
-                    currentUserData = userDoc.data();
-                }
-            } catch (error) {
-                console.error('Error loading user data:', error);
-                showNotification('Error loading user data', 'error');
-            }
+            return new Promise((resolve, reject) => {
+                database.ref('users/' + userId).once('value')
+                    .then((snapshot) => {
+                        if (snapshot.exists()) {
+                            const userData = snapshot.val();
+                            currentUserData = {
+                                id: userId,
+                                username: userData.username || 'User',
+                                name: userData.name || 'User',
+                                profileImage: userData.profileImage || '',
+                                bio: userData.bio || '',
+                                phone: userData.phone || ''
+                            };
+                            resolve(userData);
+                        } else {
+                            reject(new Error('User data not found'));
+                        }
+                    })
+                    .catch((error) => {
+                        reject(error);
+                    });
+            });
         }
 
         // Load profile user data
         async function loadProfileUser(userId) {
-            if (!db) return;
+            if (!database) return;
             
             try {
-                const userDoc = await db.collection('users').doc(userId).get();
-                if (userDoc.exists) {
-                    profileUserData = userDoc.data();
+                const snapshot = await database.ref('users/' + userId).once('value');
+                if (snapshot.exists()) {
+                    const userData = snapshot.val();
+                    profileUserData = {
+                        id: userId,
+                        username: userData.username || 'User',
+                        name: userData.name || 'User',
+                        profileImage: userData.profileImage || '',
+                        bio: userData.bio || '',
+                        phone: userData.phone || ''
+                    };
                     renderProfile();
                     await loadSuggestions();
                 } else {
@@ -648,7 +689,7 @@
             }
         }
 
-        // Load following users
+        // Load following users from Firestore
         async function loadFollowingUsers() {
             if (!currentUser || !db) return;
             
@@ -663,6 +704,24 @@
             } catch (error) {
                 console.error('Error loading following users:', error);
                 followingUsers = [];
+            }
+        }
+
+        // Load followers from Firestore
+        async function loadFollowers() {
+            if (!currentUser || !db) return;
+            
+            try {
+                const followersDoc = await db.collection('followers').doc(currentUser.uid).get();
+                if (followersDoc.exists) {
+                    const data = followersDoc.data();
+                    followers = data.followers || [];
+                } else {
+                    followers = [];
+                }
+            } catch (error) {
+                console.error('Error loading followers:', error);
+                followers = [];
             }
         }
 
@@ -708,12 +767,15 @@
                 // Load user details for suggestions
                 suggestions = [];
                 for (const suggestion of suggestionsArray) {
-                    const userDoc = await db.collection('users').doc(suggestion.id).get();
-                    if (userDoc.exists) {
-                        const userData = userDoc.data();
+                    const snapshot = await database.ref('users/' + suggestion.id).once('value');
+                    if (snapshot.exists()) {
+                        const userData = snapshot.val();
                         suggestions.push({
                             id: suggestion.id,
-                            ...userData
+                            username: userData.username || 'User',
+                            name: userData.name || 'User',
+                            profileImage: userData.profileImage || '',
+                            bio: userData.bio || ''
                         });
                     }
                 }
@@ -778,14 +840,27 @@
                 `;
             } else {
                 const isFollowing = followingUsers.includes(getProfileUserId());
+                const isFollower = followers.includes(getProfileUserId());
+                
+                let messageButtonText = 'Message';
+                let messageButtonDisabled = false;
+                
+                if (!isFollowing && !isFollower) {
+                    messageButtonText = 'Follow to Message';
+                    messageButtonDisabled = true;
+                } else if (isFollowing && !isFollower) {
+                    messageButtonText = 'Request Pending';
+                    messageButtonDisabled = true;
+                }
+                
                 profileActions.innerHTML = `
                     <button class="btn ${isFollowing ? 'btn-secondary' : 'btn-primary'}" onclick="toggleFollow()">
                         <i class="fas ${isFollowing ? 'fa-user-check' : 'fa-user-plus'}"></i>
                         ${isFollowing ? 'Following' : 'Follow'}
                     </button>
-                    <button class="message-btn" onclick="startChat()">
+                    <button class="btn btn-primary message-btn" onclick="startChat()" ${messageButtonDisabled ? 'disabled style="opacity: 0.6; cursor: not-allowed;"' : ''}>
                         <i class="fas fa-comment"></i>
-                        Message
+                        ${messageButtonText}
                     </button>
                 `;
             }
@@ -884,6 +959,8 @@
                     });
                     
                     followingUsers = followingUsers.filter(id => id !== profileUserId);
+                    
+                    showNotification('Unfollowed user');
                 } else {
                     // Follow
                     await db.collection('following').doc(currentUser.uid).set({
@@ -906,11 +983,12 @@
                     };
                     
                     await db.collection('notifications').doc(profileUserId).collection('userNotifications').add(notification);
+                    
+                    showNotification('Started following user');
                 }
                 
                 // Update UI
                 renderProfile();
-                showNotification(isFollowing ? 'Unfollowed user' : 'Started following user');
                 
             } catch (error) {
                 console.error('Error updating follow status:', error);
@@ -936,6 +1014,8 @@
                     });
                     
                     followingUsers = followingUsers.filter(id => id !== userId);
+                    
+                    showNotification('Unfollowed user');
                 } else {
                     // Follow
                     await db.collection('following').doc(currentUser.uid).set({
@@ -958,11 +1038,12 @@
                     };
                     
                     await db.collection('notifications').doc(userId).collection('userNotifications').add(notification);
+                    
+                    showNotification('Started following user');
                 }
                 
                 // Update UI
                 await loadSuggestions();
-                showNotification(isFollowing ? 'Unfollowed user' : 'Started following user');
                 
             } catch (error) {
                 console.error('Error updating follow status:', error);
@@ -978,6 +1059,15 @@
             if (!profileUserId) return;
             
             try {
+                // Check follow status
+                const isFollowing = followingUsers.includes(profileUserId);
+                const isFollower = await checkIfUserFollows(profileUserId, currentUser.uid);
+                
+                if (!isFollowing || !isFollower) {
+                    showNotification('You need to follow each other to start chatting', 'error');
+                    return;
+                }
+                
                 // Check if chat already exists between users
                 const chatsSnapshot = await db.collection('chats')
                     .where('isGroup', '==', false)
@@ -1018,6 +1108,23 @@
             }
         }
 
+        // Check if a user follows another user
+        async function checkIfUserFollows(userId, targetUserId) {
+            if (!db) return false;
+            
+            try {
+                const followingDoc = await db.collection('following').doc(userId).get();
+                if (followingDoc.exists) {
+                    const data = followingDoc.data();
+                    return data.following && data.following.includes(targetUserId);
+                }
+                return false;
+            } catch (error) {
+                console.error('Error checking follow status:', error);
+                return false;
+            }
+        }
+
         // Bio editing
         function editBio() {
             document.getElementById('bioEditor').style.display = 'block';
@@ -1033,10 +1140,10 @@
         async function saveBio() {
             const newBio = document.getElementById('bioTextarea').value.trim();
             
-            if (!db) return;
+            if (!database) return;
             
             try {
-                await db.collection('users').doc(currentUser.uid).update({
+                await database.ref('users/' + currentUser.uid).update({
                     bio: newBio
                 });
                 
@@ -1090,9 +1197,7 @@
             if (isOwnProfile) {
                 return currentUser.uid;
             } else if (profileUserData) {
-                // Get the user ID from URL parameters
-                const urlParams = new URLSearchParams(window.location.search);
-                return urlParams.get('id');
+                return profileUserData.id;
             }
             return null;
         }
