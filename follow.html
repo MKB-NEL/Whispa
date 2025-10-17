@@ -278,6 +278,12 @@
             background: #008f70;
         }
 
+        .message-btn:disabled {
+            background: #333333;
+            color: #888888;
+            cursor: not-allowed;
+        }
+
         /* Bio Editor */
         .bio-editor {
             display: none;
@@ -609,6 +615,10 @@
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
                     currentUser = user;
+                    console.log('User authenticated:', user.uid);
+                    
+                    // Initialize user data in both databases
+                    await initializeUserData(user.uid);
                     await loadUserData(user.uid);
                     await loadFollowingUsers();
                     await loadFollowers();
@@ -617,6 +627,7 @@
                     const urlParams = new URLSearchParams(window.location.search);
                     const profileUserId = urlParams.get('id') || user.uid;
                     
+                    console.log('Profile user ID:', profileUserId);
                     isOwnProfile = profileUserId === user.uid;
                     
                     if (isOwnProfile) {
@@ -628,9 +639,54 @@
                         await loadProfileUser(profileUserId);
                     }
                 } else {
+                    console.log('No user, redirecting to login');
                     window.location.href = 'login.html';
                 }
             });
+        }
+
+        // Initialize user data in both databases
+        async function initializeUserData(userId) {
+            if (!database || !db) return;
+
+            try {
+                // Check if user exists in Realtime Database
+                const userSnapshot = await database.ref('users/' + userId).once('value');
+                if (!userSnapshot.exists()) {
+                    // Create basic user data
+                    const userData = {
+                        username: `user_${userId.substring(0, 8)}`,
+                        name: 'User',
+                        profileImage: '',
+                        bio: '',
+                        phone: '',
+                        createdAt: new Date().toISOString()
+                    };
+                    
+                    await database.ref('users/' + userId).set(userData);
+                    console.log('User data initialized in Realtime Database');
+                }
+
+                // Initialize follow data in Firestore
+                const followingDoc = await db.collection('following').doc(userId).get();
+                if (!followingDoc.exists()) {
+                    await db.collection('following').doc(userId).set({
+                        following: []
+                    });
+                }
+
+                const followersDoc = await db.collection('followers').doc(userId).get();
+                if (!followersDoc.exists()) {
+                    await db.collection('followers').doc(userId).set({
+                        followers: []
+                    });
+                }
+
+                console.log('User data initialized successfully');
+
+            } catch (error) {
+                console.error('Error initializing user data:', error);
+            }
         }
 
         // Load current user data from Realtime Database
@@ -650,12 +706,14 @@
                                 bio: userData.bio || '',
                                 phone: userData.phone || ''
                             };
+                            console.log('Current user data loaded:', currentUserData);
                             resolve(userData);
                         } else {
                             reject(new Error('User data not found'));
                         }
                     })
                     .catch((error) => {
+                        console.error('Error loading user data:', error);
                         reject(error);
                     });
             });
@@ -677,6 +735,7 @@
                         bio: userData.bio || '',
                         phone: userData.phone || ''
                     };
+                    console.log('Profile user data loaded:', profileUserData);
                     renderProfile();
                     await loadSuggestions();
                 } else {
@@ -695,9 +754,10 @@
             
             try {
                 const followingDoc = await db.collection('following').doc(currentUser.uid).get();
-                if (followingDoc.exists) {
+                if (followingDoc.exists()) {
                     const data = followingDoc.data();
                     followingUsers = data.following || [];
+                    console.log('Following users loaded:', followingUsers);
                 } else {
                     followingUsers = [];
                 }
@@ -713,9 +773,10 @@
             
             try {
                 const followersDoc = await db.collection('followers').doc(currentUser.uid).get();
-                if (followersDoc.exists) {
+                if (followersDoc.exists()) {
                     const data = followersDoc.data();
                     followers = data.followers || [];
+                    console.log('Followers loaded:', followers);
                 } else {
                     followers = [];
                 }
@@ -725,62 +786,38 @@
             }
         }
 
-        // Load suggestions based on followers' following
+        // Load suggestions - show random users for now
         async function loadSuggestions() {
-            if (!currentUser || !db) return;
+            if (!currentUser || !database) return;
             
             showSuggestionsLoading();
             
             try {
-                // Get users that current user's followers are following
-                const allSuggestions = new Map();
+                // Get all users from database
+                const usersSnapshot = await database.ref('users').once('value');
+                const allUsers = [];
                 
-                // Get current user's followers
-                const followersDoc = await db.collection('followers').doc(currentUser.uid).get();
-                if (followersDoc.exists) {
-                    const followerIds = followersDoc.data().followers || [];
-                    
-                    for (const followerId of followerIds) {
-                        // Get who this follower is following
-                        const followingDoc = await db.collection('following').doc(followerId).get();
-                        if (followingDoc.exists) {
-                            const followingIds = followingDoc.data().following || [];
-                            
-                            for (const suggestedId of followingIds) {
-                                // Don't suggest current user or users already followed
-                                if (suggestedId !== currentUser.uid && !followingUsers.includes(suggestedId)) {
-                                    if (!allSuggestions.has(suggestedId)) {
-                                        allSuggestions.set(suggestedId, { id: suggestedId, weight: 0 });
-                                    }
-                                    allSuggestions.get(suggestedId).weight++;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Convert to array and sort by weight
-                let suggestionsArray = Array.from(allSuggestions.values())
-                    .sort((a, b) => b.weight - a.weight)
-                    .slice(0, 6); // Limit to 6 suggestions
-                
-                // Load user details for suggestions
-                suggestions = [];
-                for (const suggestion of suggestionsArray) {
-                    const snapshot = await database.ref('users/' + suggestion.id).once('value');
-                    if (snapshot.exists()) {
-                        const userData = snapshot.val();
-                        suggestions.push({
-                            id: suggestion.id,
+                usersSnapshot.forEach((childSnapshot) => {
+                    const userData = childSnapshot.val();
+                    if (childSnapshot.key !== currentUser.uid && !followingUsers.includes(childSnapshot.key)) {
+                        allUsers.push({
+                            id: childSnapshot.key,
                             username: userData.username || 'User',
                             name: userData.name || 'User',
                             profileImage: userData.profileImage || '',
                             bio: userData.bio || ''
                         });
                     }
-                }
+                });
                 
+                // Shuffle and take up to 6 suggestions
+                suggestions = allUsers
+                    .sort(() => 0.5 - Math.random())
+                    .slice(0, 6);
+                
+                console.log('Suggestions loaded:', suggestions);
                 renderSuggestions();
+                
             } catch (error) {
                 console.error('Error loading suggestions:', error);
                 showNotification('Error loading suggestions', 'error');
@@ -811,17 +848,9 @@
             profileName.textContent = profileUserData.username || 'User';
             
             // Set followers count
-            if (isOwnProfile) {
-                // For own profile, get actual followers count
-                getFollowersCount(currentUser.uid).then(count => {
-                    followersCount.textContent = count;
-                });
-            } else {
-                // For other profiles, use the stored count or calculate
-                getFollowersCount(getProfileUserId()).then(count => {
-                    followersCount.textContent = count;
-                });
-            }
+            getFollowersCount(getProfileUserId()).then(count => {
+                followersCount.textContent = count;
+            });
             
             // Set bio
             if (profileUserData.bio) {
@@ -858,7 +887,7 @@
                         <i class="fas ${isFollowing ? 'fa-user-check' : 'fa-user-plus'}"></i>
                         ${isFollowing ? 'Following' : 'Follow'}
                     </button>
-                    <button class="btn btn-primary message-btn" onclick="startChat()" ${messageButtonDisabled ? 'disabled style="opacity: 0.6; cursor: not-allowed;"' : ''}>
+                    <button class="btn btn-primary message-btn" onclick="startChat()" ${messageButtonDisabled ? 'disabled' : ''}>
                         <i class="fas fa-comment"></i>
                         ${messageButtonText}
                     </button>
@@ -872,7 +901,7 @@
             
             try {
                 const followersDoc = await db.collection('followers').doc(userId).get();
-                if (followersDoc.exists) {
+                if (followersDoc.exists()) {
                     const data = followersDoc.data();
                     return data.followers ? data.followers.length : 0;
                 }
@@ -1080,6 +1109,7 @@
                 if (!chatsSnapshot.empty) {
                     // Use existing chat
                     chatId = chatsSnapshot.docs[0].id;
+                    console.log('Found existing chat:', chatId);
                 } else {
                     // Create new chat
                     const chatData = {
@@ -1092,11 +1122,16 @@
                         createdBy: currentUser.uid,
                         createdAt: new Date(),
                         lastActivity: new Date(),
-                        lastMessage: 'Chat started'
+                        lastMessage: 'Chat started',
+                        unreadCount: {
+                            [currentUser.uid]: 0,
+                            [profileUserId]: 0
+                        }
                     };
                     
                     const chatRef = await db.collection('chats').add(chatData);
                     chatId = chatRef.id;
+                    console.log('Created new chat:', chatId);
                 }
                 
                 // Redirect to home.html with chat opened
@@ -1114,7 +1149,7 @@
             
             try {
                 const followingDoc = await db.collection('following').doc(userId).get();
-                if (followingDoc.exists) {
+                if (followingDoc.exists()) {
                     const data = followingDoc.data();
                     return data.following && data.following.includes(targetUserId);
                 }
