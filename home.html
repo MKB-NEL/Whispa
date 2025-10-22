@@ -659,6 +659,148 @@
             background: #2a2a2a;
         }
 
+        /* Group Management Styles */
+        .group-management {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #1a1a1a;
+            border: 1px solid #333333;
+            border-radius: 12px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .group-management.show {
+            display: block;
+        }
+
+        .group-management h3 {
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .group-input {
+            width: 100%;
+            padding: 12px;
+            background: #2a2a2a;
+            border: 1px solid #333333;
+            border-radius: 8px;
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        .group-input:focus {
+            outline: none;
+            border-color: #00a884;
+        }
+
+        .user-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .user-item:hover {
+            background: #2a2a2a;
+        }
+
+        .user-item.selected {
+            background: #005c4b;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #00a884;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .group-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .group-btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .group-btn.primary {
+            background: #00a884;
+            color: white;
+        }
+
+        .group-btn.secondary {
+            background: #333333;
+            color: white;
+        }
+
+        .group-members {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .member-tag {
+            background: #2a2a2a;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .remove-member {
+            background: none;
+            border: none;
+            color: #ff4444;
+            cursor: pointer;
+            padding: 2px;
+        }
+
+        /* Overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 999;
+            display: none;
+        }
+
+        .overlay.show {
+            display: block;
+        }
+
         /* Notifications */
         .notifications-container {
             position: fixed;
@@ -810,6 +952,25 @@
     <!-- Loading Spinner -->
     <div class="loading-spinner" id="globalSpinner"></div>
 
+    <!-- Overlay -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Group Management Modal -->
+    <div class="group-management" id="groupManagement">
+        <h3 id="groupManagementTitle">Add People to Chat</h3>
+        <input type="text" class="group-input" id="groupNameInput" placeholder="Enter group name (optional)" style="display: none;">
+        <div class="user-list" id="userList">
+            <!-- Users will be populated here -->
+        </div>
+        <div class="group-members" id="selectedMembers">
+            <!-- Selected members will be shown here -->
+        </div>
+        <div class="group-actions">
+            <button class="group-btn secondary" id="cancelGroupBtn">Cancel</button>
+            <button class="group-btn primary" id="confirmGroupBtn">Add to Chat</button>
+        </div>
+    </div>
+
     <!-- Notifications Container -->
     <div class="notifications-container" id="notificationsContainer">
         <!-- Notifications will be dynamically added here -->
@@ -834,6 +995,9 @@
                 <div class="chats-header">
                     <h2 id="contentTitle">Chats</h2>
                     <div class="header-actions">
+                        <button class="icon-btn" title="New Chat" id="newChatBtn">
+                            <i class="fas fa-plus"></i>
+                        </button>
                         <button class="icon-btn" title="Settings" id="settingsBtn">
                             <i class="fas fa-cog"></i>
                         </button>
@@ -859,6 +1023,9 @@
                     </div>
                 </div>
                 <div class="chat-actions">
+                    <button class="icon-btn" title="Add People" id="addPeopleBtn" style="display: none;">
+                        <i class="fas fa-user-plus"></i>
+                    </button>
                     <button class="icon-btn" title="More Options" id="chatMenuBtn">
                         <i class="fas fa-ellipsis-v"></i>
                     </button>
@@ -866,6 +1033,10 @@
                         <div class="menu-item" onclick="clearChat()">
                             <i class="fas fa-trash"></i>
                             Clear Chat
+                        </div>
+                        <div class="menu-item" onclick="manageGroupMembers()" id="manageGroupItem" style="display: none;">
+                            <i class="fas fa-users"></i>
+                            Manage Group
                         </div>
                         <div class="menu-item danger" onclick="unfollowUser()">
                             <i class="fas fa-user-times"></i>
@@ -976,8 +1147,9 @@
         let searchResults = [];
         let followingUsers = [];
         let followers = [];
+        let selectedUsers = [];
 
-        // Emoji data
+        // Emoji data (same as before)
         const emojis = {
             all: ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "👹", "👺", "🤡", "💩", "👻", "💀", "☠️", "👽", "👾", "🤖", "🎃", "😺", "😸", "😹", "😻", "😼", "😽", "🙀", "😿", "😾"],
             smileys: ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "👹", "👺", "🤡", "💩", "👻", "💀", "☠️", "👽", "👾", "🤖", "🎃", "😺", "😸", "😹", "😻", "😼", "😽", "🙀", "😿", "😾"],
@@ -1017,6 +1189,17 @@
         const followPrompt = document.getElementById('followPrompt');
         const followPromptBtn = document.getElementById('followPromptBtn');
         const pendingRequest = document.getElementById('pendingRequest');
+        const newChatBtn = document.getElementById('newChatBtn');
+        const addPeopleBtn = document.getElementById('addPeopleBtn');
+        const manageGroupItem = document.getElementById('manageGroupItem');
+        const groupManagement = document.getElementById('groupManagement');
+        const overlay = document.getElementById('overlay');
+        const groupManagementTitle = document.getElementById('groupManagementTitle');
+        const groupNameInput = document.getElementById('groupNameInput');
+        const userList = document.getElementById('userList');
+        const selectedMembers = document.getElementById('selectedMembers');
+        const cancelGroupBtn = document.getElementById('cancelGroupBtn');
+        const confirmGroupBtn = document.getElementById('confirmGroupBtn');
 
         // Show/hide loading spinner
         function showLoading() {
@@ -1147,7 +1330,6 @@
             });
         }
 
-        // [Rest of the code remains exactly the same as previous version...]
         // Check URL parameters for chat opening
         function checkUrlParameters() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -1666,6 +1848,16 @@
                 window.location.href = 'settings.html';
             });
 
+            // New chat button
+            newChatBtn.addEventListener('click', showNewChatModal);
+
+            // Add people button
+            addPeopleBtn.addEventListener('click', showAddPeopleModal);
+
+            // Group management buttons
+            cancelGroupBtn.addEventListener('click', hideGroupModal);
+            confirmGroupBtn.addEventListener('click', confirmGroupAction);
+
             // Update user status when leaving the page
             window.addEventListener('beforeunload', () => {
                 updateUserStatus('Offline');
@@ -1677,6 +1869,284 @@
                 } else {
                     updateUserStatus('Online');
                 }
+            });
+        }
+
+        // Show new chat modal
+        function showNewChatModal() {
+            selectedUsers = [];
+            groupManagementTitle.textContent = 'Start New Chat';
+            groupNameInput.style.display = 'none';
+            confirmGroupBtn.textContent = 'Start Chat';
+            renderUserList();
+            showGroupModal();
+        }
+
+        // Show add people modal
+        function showAddPeopleModal() {
+            if (!currentChatId) return;
+            
+            const currentChat = chats.find(chat => chat.id === currentChatId);
+            if (!currentChat) return;
+            
+            selectedUsers = [];
+            groupManagementTitle.textContent = 'Add People to Chat';
+            groupNameInput.style.display = 'none';
+            confirmGroupBtn.textContent = 'Add to Chat';
+            renderUserList();
+            showGroupModal();
+        }
+
+        // Show group management modal
+        function showGroupModal() {
+            overlay.classList.add('show');
+            groupManagement.classList.add('show');
+        }
+
+        // Hide group management modal
+        function hideGroupModal() {
+            overlay.classList.remove('show');
+            groupManagement.classList.remove('show');
+            selectedUsers = [];
+        }
+
+        // Render user list for group management
+        function renderUserList() {
+            userList.innerHTML = '';
+            selectedMembers.innerHTML = '';
+            
+            // Filter users to show only those who follow each other
+            const availableUsers = users.filter(user => 
+                followingUsers.includes(user.id) && followers.includes(user.id)
+            );
+            
+            if (availableUsers.length === 0) {
+                userList.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">No users available. Follow each other to start chatting.</div>';
+                return;
+            }
+            
+            availableUsers.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.setAttribute('data-user-id', user.id);
+                
+                const userDisplayName = user.username || user.name || 'User';
+                const userAvatarText = userDisplayName.charAt(0).toUpperCase();
+                
+                userItem.innerHTML = `
+                    <div class="user-avatar" style="${user.profileImage ? `background-image: url(${user.profileImage})` : ''}">
+                        ${user.profileImage ? '' : userAvatarText}
+                    </div>
+                    <div>${userDisplayName}</div>
+                `;
+                
+                userItem.addEventListener('click', () => {
+                    toggleUserSelection(user.id, userDisplayName, user.profileImage);
+                });
+                
+                userList.appendChild(userItem);
+            });
+        }
+
+        // Toggle user selection
+        function toggleUserSelection(userId, userName, userProfileImage) {
+            const userIndex = selectedUsers.findIndex(u => u.id === userId);
+            
+            if (userIndex === -1) {
+                // Add user to selection
+                selectedUsers.push({
+                    id: userId,
+                    name: userName,
+                    profileImage: userProfileImage
+                });
+                
+                // Add to selected members display
+                const memberTag = document.createElement('div');
+                memberTag.className = 'member-tag';
+                memberTag.innerHTML = `
+                    ${userName}
+                    <button class="remove-member" onclick="removeSelectedUser('${userId}')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                selectedMembers.appendChild(memberTag);
+                
+                // Highlight user in list
+                const userItem = document.querySelector(`[data-user-id="${userId}"]`);
+                if (userItem) {
+                    userItem.classList.add('selected');
+                }
+            } else {
+                // Remove user from selection
+                removeSelectedUser(userId);
+            }
+        }
+
+        // Remove selected user
+        function removeSelectedUser(userId) {
+            selectedUsers = selectedUsers.filter(u => u.id !== userId);
+            
+            // Remove from selected members display
+            const memberTag = document.querySelector(`.member-tag button[onclick="removeSelectedUser('${userId}')"]`)?.parentElement;
+            if (memberTag) {
+                memberTag.remove();
+            }
+            
+            // Remove highlight from user in list
+            const userItem = document.querySelector(`[data-user-id="${userId}"]`);
+            if (userItem) {
+                userItem.classList.remove('selected');
+            }
+        }
+
+        // Confirm group action
+        function confirmGroupAction() {
+            if (selectedUsers.length === 0) {
+                showNotification('Please select at least one user');
+                return;
+            }
+            
+            if (groupManagementTitle.textContent === 'Start New Chat') {
+                // Create new group chat
+                createGroupChat();
+            } else {
+                // Add people to existing chat
+                addPeopleToChat();
+            }
+        }
+
+        // Create group chat
+        function createGroupChat() {
+            const chatId = database.ref().child('chats').push().key;
+            const memberIds = [currentUser.id, ...selectedUsers.map(u => u.id)];
+            
+            // Create members object
+            const members = {};
+            memberIds.forEach(memberId => {
+                members[memberId] = true;
+            });
+            
+            const chatData = {
+                id: chatId,
+                name: `Group with ${selectedUsers.length + 1} people`,
+                avatar: 'G',
+                isGroup: true,
+                members: members,
+                createdBy: currentUser.id,
+                createdAt: firebase.database.ServerValue.TIMESTAMP,
+                lastActivity: firebase.database.ServerValue.TIMESTAMP,
+                lastMessage: 'Group created'
+            };
+            
+            database.ref(`chats/${chatId}`).set(chatData)
+                .then(() => {
+                    hideGroupModal();
+                    openChat(chatId);
+                    showNotification('Group chat created successfully');
+                })
+                .catch(error => {
+                    console.error('Error creating group chat:', error);
+                    showNotification('Error creating group chat', 'error');
+                });
+        }
+
+        // Add people to existing chat
+        function addPeopleToChat() {
+            if (!currentChatId) return;
+            
+            const currentChat = chats.find(chat => chat.id === currentChatId);
+            if (!currentChat) return;
+            
+            const updates = {};
+            selectedUsers.forEach(user => {
+                updates[`chats/${currentChatId}/members/${user.id}`] = true;
+            });
+            
+            // Add system message
+            const messageId = database.ref().child('messages').child(currentChatId).push().key;
+            const systemMessage = {
+                id: messageId,
+                text: `${currentUser.username} added ${selectedUsers.length} people to the chat`,
+                senderId: 'system',
+                senderName: 'System',
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                read: true
+            };
+            
+            updates[`messages/${currentChatId}/${messageId}`] = systemMessage;
+            updates[`chats/${currentChatId}/lastActivity`] = firebase.database.ServerValue.TIMESTAMP;
+            
+            database.ref().update(updates)
+                .then(() => {
+                    hideGroupModal();
+                    showNotification('People added to chat successfully');
+                    // Reload messages to show the system message
+                    loadMessages(currentChatId);
+                })
+                .catch(error => {
+                    console.error('Error adding people to chat:', error);
+                    showNotification('Error adding people to chat', 'error');
+                });
+        }
+
+        // Manage group members
+        function manageGroupMembers() {
+            if (!currentChatId) return;
+            
+            const currentChat = chats.find(chat => chat.id === currentChatId);
+            if (!currentChat || !currentChat.isGroup) return;
+            
+            // Show remove members interface
+            showRemoveMembersModal();
+        }
+
+        // Show remove members modal
+        function showRemoveMembersModal() {
+            selectedUsers = [];
+            groupManagementTitle.textContent = 'Manage Group Members';
+            groupNameInput.style.display = 'none';
+            confirmGroupBtn.textContent = 'Remove Selected';
+            confirmGroupBtn.style.background = '#ff4444';
+            renderGroupMembersList();
+            showGroupModal();
+        }
+
+        // Render group members list for management
+        function renderGroupMembersList() {
+            userList.innerHTML = '';
+            selectedMembers.innerHTML = '';
+            
+            const currentChat = chats.find(chat => chat.id === currentChatId);
+            if (!currentChat) return;
+            
+            const memberIds = Object.keys(currentChat.members).filter(id => id !== currentUser.id);
+            const groupMembers = users.filter(user => memberIds.includes(user.id));
+            
+            if (groupMembers.length === 0) {
+                userList.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">No other members in this group.</div>';
+                return;
+            }
+            
+            groupMembers.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.setAttribute('data-user-id', user.id);
+                
+                const userDisplayName = user.username || user.name || 'User';
+                const userAvatarText = userDisplayName.charAt(0).toUpperCase();
+                
+                userItem.innerHTML = `
+                    <div class="user-avatar" style="${user.profileImage ? `background-image: url(${user.profileImage})` : ''}">
+                        ${user.profileImage ? '' : userAvatarText}
+                    </div>
+                    <div>${userDisplayName}</div>
+                `;
+                
+                userItem.addEventListener('click', () => {
+                    toggleUserSelection(user.id, userDisplayName, user.profileImage);
+                });
+                
+                userList.appendChild(userItem);
             });
         }
 
@@ -1950,6 +2420,15 @@
             messageInputArea.style.display = 'flex';
             followPrompt.style.display = 'none';
             pendingRequest.style.display = 'none';
+
+            // Show/hide add people button based on chat type
+            if (chat.isGroup) {
+                addPeopleBtn.style.display = 'flex';
+                manageGroupItem.style.display = 'flex';
+            } else {
+                addPeopleBtn.style.display = 'none';
+                manageGroupItem.style.display = 'none';
+            }
 
             // Set chat display name and avatar
             let chatDisplayName = chat.name;
