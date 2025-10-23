@@ -7,8 +7,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
     <style>
         * {
             margin: 0;
@@ -655,7 +655,7 @@
             </div>
 
             <div class="empty-chat" id="emptyChat">
-                <img src="https://i.ibb.co/zVkw45Kc/Whispa-1-removebg-preview.png" alt="Whispa Logo">
+                <img src="https://i.ibb.co/zVkw45Kc/Whispa-1-removebg-preview.png" alt="Whispa Logo" onerror="this.style.display='none'">
                 <h2>Welcome to Whispa</h2>
                 <p>Start a conversation by adding a user with their code or select an existing chat.</p>
             </div>
@@ -688,8 +688,8 @@
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
         const auth = firebase.auth();
+        const firestore = firebase.firestore();
 
         // Current user data
         let currentUser = {
@@ -752,32 +752,46 @@
             });
         }
 
-        // Load user data from Firebase
+        // Load user data from Firestore
         async function loadUserData(userId) {
-            return new Promise((resolve, reject) => {
-                database.ref('users/' + userId).once('value')
-                    .then((snapshot) => {
-                        if (snapshot.exists()) {
-                            const userData = snapshot.val();
-                            currentUser.name = userData.name || 'User';
-                            currentUser.username = userData.username || userData.name || 'User';
-                            currentUser.profileImage = userData.profileImage || '';
-                            currentUser.userCode = userData.userCode || generateUserCode();
-                            
-                            // Update user code if not exists
-                            if (!userData.userCode) {
-                                database.ref('users/' + userId + '/userCode').set(currentUser.userCode);
-                            }
-                            
-                            resolve(userData);
-                        } else {
-                            reject(new Error('User data not found'));
-                        }
-                    })
-                    .catch((error) => {
-                        reject(error);
+            try {
+                const userDoc = await firestore.collection('users').doc(userId).get();
+                
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    currentUser.name = userData.name || 'User';
+                    currentUser.username = userData.username || userData.name || 'User';
+                    currentUser.profileImage = userData.profileImage || '';
+                    currentUser.userCode = userData.userCode || generateUserCode();
+                    
+                    // Update user code if not exists
+                    if (!userData.userCode) {
+                        await firestore.collection('users').doc(userId).set({
+                            userCode: currentUser.userCode,
+                            name: currentUser.name,
+                            username: currentUser.username,
+                            profileImage: currentUser.profileImage,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true });
+                    }
+                    
+                    return userData;
+                } else {
+                    // Create new user document
+                    currentUser.userCode = generateUserCode();
+                    await firestore.collection('users').doc(userId).set({
+                        userCode: currentUser.userCode,
+                        name: currentUser.name,
+                        username: currentUser.username,
+                        profileImage: currentUser.profileImage,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
                     });
-            });
+                    return currentUser;
+                }
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                throw error;
+            }
         }
 
         // Generate unique user code
@@ -798,13 +812,13 @@
             }
         }
 
-        // Load all users
+        // Load all users from Firestore
         function loadUsers() {
-            database.ref('users').on('value', (snapshot) => {
+            firestore.collection('users').onSnapshot((snapshot) => {
                 users = [];
-                snapshot.forEach((childSnapshot) => {
-                    const user = childSnapshot.val();
-                    user.id = childSnapshot.key;
+                snapshot.forEach((doc) => {
+                    const user = doc.data();
+                    user.id = doc.id;
                     if (user.id !== currentUser.id) {
                         users.push(user);
                     }
@@ -812,49 +826,55 @@
             });
         }
 
-        // Load user chats
+        // Load user chats from Firestore
         function loadChats() {
-            database.ref('chats').orderByChild('lastActivity').on('value', (snapshot) => {
-                chats = [];
-                snapshot.forEach((childSnapshot) => {
-                    const chat = childSnapshot.val();
-                    chat.id = childSnapshot.key;
-                    
-                    if (chat.members && chat.members[currentUser.id]) {
+            firestore.collection('chats')
+                .where('members', 'array-contains', currentUser.id)
+                .orderBy('lastActivity', 'desc')
+                .onSnapshot((snapshot) => {
+                    chats = [];
+                    snapshot.forEach((doc) => {
+                        const chat = doc.data();
+                        chat.id = doc.id;
                         chats.push(chat);
-                    }
+                    });
+                    renderContent();
                 });
-                
-                // Sort by last activity (newest first)
-                chats.sort((a, b) => b.lastActivity - a.lastActivity);
-                renderContent();
-            });
         }
 
-        // Load notifications
+        // Load notifications from Firestore
         function loadNotifications() {
-            database.ref(`notifications/${currentUser.id}`).orderByChild('timestamp').on('value', (snapshot) => {
-                notifications = [];
-                snapshot.forEach((childSnapshot) => {
-                    const notification = childSnapshot.val();
-                    notification.id = childSnapshot.key;
-                    notifications.push(notification);
+            firestore.collection('notifications')
+                .where('userId', '==', currentUser.id)
+                .orderBy('timestamp', 'desc')
+                .onSnapshot((snapshot) => {
+                    notifications = [];
+                    snapshot.forEach((doc) => {
+                        const notification = doc.data();
+                        notification.id = doc.id;
+                        notifications.push(notification);
+                    });
+                    renderContent();
                 });
-                notifications.sort((a, b) => b.timestamp - a.timestamp);
-                renderContent();
-            });
         }
 
         // Listen for real-time updates
         function listenForRealTimeUpdates() {
             // Listen for new messages in current chat
             if (currentChatId) {
-                database.ref(`messages/${currentChatId}`).orderByChild('timestamp').on('child_added', (snapshot) => {
-                    const message = snapshot.val();
-                    if (message.senderId !== currentUser.id) {
-                        markMessageAsRead(currentChatId, snapshot.key);
-                    }
-                });
+                firestore.collection('messages')
+                    .where('chatId', '==', currentChatId)
+                    .orderBy('timestamp', 'asc')
+                    .onSnapshot((snapshot) => {
+                        snapshot.docChanges().forEach((change) => {
+                            if (change.type === 'added') {
+                                const message = change.doc.data();
+                                if (message.senderId !== currentUser.id) {
+                                    markMessageAsRead(change.doc.id);
+                                }
+                            }
+                        });
+                    });
             }
         }
 
@@ -886,7 +906,7 @@
                 }
                 chatItem.setAttribute('data-chat-id', chat.id);
                 
-                const timeString = formatTime(chat.lastActivity);
+                const timeString = formatTime(chat.lastActivity?.toDate());
                 const unreadCount = chat.unreadCount && chat.unreadCount[currentUser.id] ? chat.unreadCount[currentUser.id] : 0;
                 
                 // Get the other user's info
@@ -894,13 +914,13 @@
                 let chatAvatar = '?';
                 let otherUserId = null;
                 
-                if (!chat.isGroup) {
-                    otherUserId = Object.keys(chat.members).find(id => id !== currentUser.id);
+                if (chat.members && chat.members.length === 2) {
+                    otherUserId = chat.members.find(id => id !== currentUser.id);
                     if (otherUserId) {
                         const otherUser = users.find(u => u.id === otherUserId);
                         if (otherUser) {
                             chatDisplayName = otherUser.username || otherUser.name || 'User';
-                            chatAvatar = otherUser.profileImage || chatDisplayName.charAt(0).toUpperCase();
+                            chatAvatar = otherUser.profileImage || (chatDisplayName ? chatDisplayName.charAt(0).toUpperCase() : '?');
                         }
                     }
                 }
@@ -932,7 +952,7 @@
             }
             
             notifications.forEach(notification => {
-                const timeString = formatTime(notification.timestamp);
+                const timeString = formatTime(notification.timestamp?.toDate());
                 const notificationItem = document.createElement('div');
                 notificationItem.className = 'notification-item';
                 
@@ -954,7 +974,7 @@
         function formatTime(timestamp) {
             if (!timestamp) return '';
             
-            const date = new Date(timestamp);
+            const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
             const now = new Date();
             const diff = now - date;
             
@@ -1028,8 +1048,8 @@
             const filteredChats = chats.filter(chat => {
                 let chatDisplayName = 'Unknown User';
                 
-                if (!chat.isGroup) {
-                    const otherUserId = Object.keys(chat.members).find(id => id !== currentUser.id);
+                if (chat.members && chat.members.length === 2) {
+                    const otherUserId = chat.members.find(id => id !== currentUser.id);
                     if (otherUserId) {
                         const otherUser = users.find(u => u.id === otherUserId);
                         if (otherUser) {
@@ -1062,18 +1082,18 @@
                 }
                 chatItem.setAttribute('data-chat-id', chat.id);
                 
-                const timeString = formatTime(chat.lastActivity);
+                const timeString = formatTime(chat.lastActivity?.toDate());
                 
                 let chatDisplayName = 'Unknown User';
                 let chatAvatar = '?';
                 
-                if (!chat.isGroup) {
-                    const otherUserId = Object.keys(chat.members).find(id => id !== currentUser.id);
+                if (chat.members && chat.members.length === 2) {
+                    const otherUserId = chat.members.find(id => id !== currentUser.id);
                     if (otherUserId) {
                         const otherUser = users.find(u => u.id === otherUserId);
                         if (otherUser) {
                             chatDisplayName = otherUser.username || otherUser.name || 'User';
-                            chatAvatar = otherUser.profileImage || chatDisplayName.charAt(0).toUpperCase();
+                            chatAvatar = otherUser.profileImage || (chatDisplayName ? chatDisplayName.charAt(0).toUpperCase() : '?');
                         }
                     }
                 }
@@ -1137,7 +1157,7 @@
         }
 
         // Start chat with user code
-        function startChatWithCode() {
+        async function startChatWithCode() {
             const userCode = userCodeInput.value.trim();
             if (!userCode) {
                 alert('Please enter a user code');
@@ -1149,73 +1169,82 @@
                 return;
             }
 
-            // Find user by code
-            database.ref('users').orderByChild('userCode').equalTo(userCode).once('value')
-                .then((snapshot) => {
-                    if (snapshot.exists()) {
-                        const userData = snapshot.val();
-                        const userId = Object.keys(userData)[0];
-                        const user = userData[userId];
-                        
-                        // Check if chat already exists
-                        const existingChat = chats.find(chat => 
-                            !chat.isGroup && 
-                            chat.members[currentUser.id] && 
-                            chat.members[userId]
-                        );
-                        
-                        if (existingChat) {
-                            openChat(existingChat.id);
-                            hideAddChatModal();
-                        } else {
-                            createNewChat(userId, user.username || user.name, user.profileImage);
+            try {
+                // Find user by code in Firestore
+                const userQuery = await firestore.collection('users')
+                    .where('userCode', '==', userCode)
+                    .get();
+
+                if (!userQuery.empty) {
+                    const userDoc = userQuery.docs[0];
+                    const user = userDoc.data();
+                    const userId = userDoc.id;
+                    
+                    // Check if chat already exists
+                    const existingChatQuery = await firestore.collection('chats')
+                        .where('members', 'array-contains', currentUser.id)
+                        .get();
+
+                    let existingChat = null;
+                    existingChatQuery.forEach(doc => {
+                        const chat = doc.data();
+                        if (chat.members.includes(userId) && chat.members.length === 2) {
+                            existingChat = { id: doc.id, ...chat };
                         }
+                    });
+
+                    if (existingChat) {
+                        openChat(existingChat.id);
+                        hideAddChatModal();
                     } else {
-                        alert('User not found. Please check the code and try again.');
+                        await createNewChat(userId, user.username || user.name, user.profileImage);
                     }
-                })
-                .catch((error) => {
-                    console.error('Error finding user:', error);
-                    alert('Error finding user. Please try again.');
-                });
+                } else {
+                    alert('User not found. Please check the code and try again.');
+                }
+            } catch (error) {
+                console.error('Error finding user:', error);
+                alert('Error finding user. Please try again.');
+            }
         }
 
         // Create new chat
-        function createNewChat(userId, userName, userProfileImage) {
-            const chatId = database.ref().child('chats').push().key;
-            const chatData = {
-                id: chatId,
-                name: userName,
-                avatar: userProfileImage || userName.charAt(0).toUpperCase(),
-                isGroup: false,
-                members: {
-                    [currentUser.id]: true,
-                    [userId]: true
-                },
-                createdBy: currentUser.id,
-                createdAt: firebase.database.ServerValue.TIMESTAMP,
-                lastActivity: firebase.database.ServerValue.TIMESTAMP,
-                lastMessage: 'Chat started'
-            };
-            
-            database.ref(`chats/${chatId}`).set(chatData)
-                .then(() => {
-                    hideAddChatModal();
-                    openChat(chatId);
-                    
-                    // Send notification to the other user
-                    const notification = {
-                        type: 'new_chat',
-                        message: `${currentUser.username} started a chat with you`,
-                        icon: 'fas fa-comment',
-                        timestamp: firebase.database.ServerValue.TIMESTAMP
-                    };
-                    database.ref(`notifications/${userId}`).push(notification);
-                })
-                .catch(error => {
-                    console.error('Error creating chat:', error);
-                    alert('Error starting chat. Please try again.');
+        async function createNewChat(userId, userName, userProfileImage) {
+            try {
+                const chatRef = firestore.collection('chats').doc();
+                const chatData = {
+                    id: chatRef.id,
+                    name: userName,
+                    avatar: userProfileImage || (userName ? userName.charAt(0).toUpperCase() : '?'),
+                    isGroup: false,
+                    members: [currentUser.id, userId],
+                    createdBy: currentUser.id,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastActivity: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastMessage: 'Chat started',
+                    unreadCount: {
+                        [currentUser.id]: 0,
+                        [userId]: 0
+                    }
+                };
+                
+                await chatRef.set(chatData);
+                hideAddChatModal();
+                openChat(chatRef.id);
+                
+                // Send notification to the other user
+                await firestore.collection('notifications').add({
+                    userId: userId,
+                    type: 'new_chat',
+                    message: `${currentUser.username} started a chat with you`,
+                    icon: 'fas fa-comment',
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
+
+            } catch (error) {
+                console.error('Error creating chat:', error);
+                alert('Error starting chat. Please try again.');
+            }
         }
 
         // Open chat
@@ -1233,13 +1262,13 @@
             let chatDisplayName = 'Unknown User';
             let chatAvatar = '?';
             
-            if (!chat.isGroup) {
-                const otherUserId = Object.keys(chat.members).find(id => id !== currentUser.id);
+            if (chat.members && chat.members.length === 2) {
+                const otherUserId = chat.members.find(id => id !== currentUser.id);
                 if (otherUserId) {
                     const otherUser = users.find(u => u.id === otherUserId);
                     if (otherUser) {
                         chatDisplayName = otherUser.username || otherUser.name || 'User';
-                        chatAvatar = otherUser.profileImage || chatDisplayName.charAt(0).toUpperCase();
+                        chatAvatar = otherUser.profileImage || (chatDisplayName ? chatDisplayName.charAt(0).toUpperCase() : '?');
                     }
                 }
             }
@@ -1265,86 +1294,103 @@
         function loadMessages(chatId) {
             messagesContainer.innerHTML = '';
             
-            database.ref(`messages/${chatId}`).orderByChild('timestamp').on('value', (snapshot) => {
-                messagesContainer.innerHTML = '';
-                
-                snapshot.forEach((childSnapshot) => {
-                    const message = childSnapshot.val();
-                    message.id = childSnapshot.key;
+            firestore.collection('messages')
+                .where('chatId', '==', chatId)
+                .orderBy('timestamp', 'asc')
+                .onSnapshot((snapshot) => {
+                    messagesContainer.innerHTML = '';
                     
-                    const messageElement = document.createElement('div');
-                    messageElement.className = `message ${message.senderId === currentUser.id ? 'sent' : 'received'}`;
+                    snapshot.forEach((doc) => {
+                        const message = doc.data();
+                        
+                        const messageElement = document.createElement('div');
+                        messageElement.className = `message ${message.senderId === currentUser.id ? 'sent' : 'received'}`;
+                        
+                        const timeString = formatTime(message.timestamp?.toDate());
+                        
+                        messageElement.innerHTML = `
+                            <div class="message-text">${message.text}</div>
+                            <div class="message-time">${timeString}</div>
+                        `;
+                        
+                        messagesContainer.appendChild(messageElement);
+                    });
                     
-                    const timeString = formatTime(message.timestamp);
-                    
-                    messageElement.innerHTML = `
-                        <div class="message-text">${message.text}</div>
-                        <div class="message-time">${timeString}</div>
-                    `;
-                    
-                    messagesContainer.appendChild(messageElement);
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 });
-                
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            });
         }
 
         // Mark chat as read
-        function markChatAsRead(chatId) {
-            const updates = {};
-            updates[`chats/${chatId}/unreadCount/${currentUser.id}`] = 0;
-            database.ref().update(updates);
+        async function markChatAsRead(chatId) {
+            try {
+                await firestore.collection('chats').doc(chatId).update({
+                    [`unreadCount.${currentUser.id}`]: 0
+                });
+            } catch (error) {
+                console.error('Error marking chat as read:', error);
+            }
         }
 
         // Mark message as read
-        function markMessageAsRead(chatId, messageId) {
-            const updates = {};
-            updates[`messages/${chatId}/${messageId}/read`] = true;
-            updates[`messages/${chatId}/${messageId}/readBy/${currentUser.id}`] = true;
-            database.ref().update(updates);
+        async function markMessageAsRead(messageId) {
+            try {
+                await firestore.collection('messages').doc(messageId).update({
+                    read: true,
+                    [`readBy.${currentUser.id}`]: true
+                });
+            } catch (error) {
+                console.error('Error marking message as read:', error);
+            }
         }
 
         // Send message
-        function sendMessage() {
+        async function sendMessage() {
             const text = messageInput.value.trim();
             if (!text || !currentChatId) return;
 
-            const messageId = database.ref().child('messages').child(currentChatId).push().key;
-            const newMessage = {
-                id: messageId,
-                text: text,
-                senderId: currentUser.id,
-                senderName: currentUser.username,
-                timestamp: firebase.database.ServerValue.TIMESTAMP,
-                read: false
-            };
+            try {
+                const messageRef = firestore.collection('messages').doc();
+                const newMessage = {
+                    id: messageRef.id,
+                    text: text,
+                    senderId: currentUser.id,
+                    senderName: currentUser.username,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    chatId: currentChatId,
+                    read: false
+                };
 
-            database.ref(`messages/${currentChatId}/${messageId}`).set(newMessage)
-                .then(() => {
-                    const updates = {};
-                    updates[`chats/${currentChatId}/lastMessage`] = text;
-                    updates[`chats/${currentChatId}/lastActivity`] = firebase.database.ServerValue.TIMESTAMP;
-                    
-                    const chat = chats.find(c => c.id === currentChatId);
-                    if (chat && chat.members) {
-                        Object.keys(chat.members).forEach(memberId => {
-                            if (memberId !== currentUser.id) {
-                                const currentUnread = chat.unreadCount && chat.unreadCount[memberId] || 0;
-                                updates[`chats/${currentChatId}/unreadCount/${memberId}`] = currentUnread + 1;
-                            }
-                        });
-                    }
-                    
-                    return database.ref().update(updates);
-                })
-                .then(() => {
-                    messageInput.value = '';
-                    messageInput.style.height = 'auto';
-                })
-                .catch((error) => {
-                    console.error('Error sending message:', error);
-                    alert('Error sending message. Please try again.');
+                await messageRef.set(newMessage);
+
+                // Update chat last message and activity
+                await firestore.collection('chats').doc(currentChatId).update({
+                    lastMessage: text,
+                    lastActivity: firebase.firestore.FieldValue.serverTimestamp()
                 });
+
+                // Update unread count for other members
+                const chat = chats.find(c => c.id === currentChatId);
+                if (chat && chat.members) {
+                    const updates = {};
+                    chat.members.forEach(memberId => {
+                        if (memberId !== currentUser.id) {
+                            const currentUnread = chat.unreadCount && chat.unreadCount[memberId] || 0;
+                            updates[`unreadCount.${memberId}`] = currentUnread + 1;
+                        }
+                    });
+                    
+                    if (Object.keys(updates).length > 0) {
+                        await firestore.collection('chats').doc(currentChatId).update(updates);
+                    }
+                }
+
+                messageInput.value = '';
+                messageInput.style.height = 'auto';
+
+            } catch (error) {
+                console.error('Error sending message:', error);
+                alert('Error sending message. Please try again.');
+            }
         }
 
         // Initialize the app when DOM is loaded
