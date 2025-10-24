@@ -343,27 +343,6 @@
             height: 14px;
         }
 
-        /* Enhanced Loading States */
-        .form-loading {
-            position: relative;
-        }
-
-        .form-loading::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
-            display: none;
-            border-radius: 6px;
-        }
-
-        .form-loading.active::after {
-            display: block;
-        }
-
         .loading-spinner {
             position: fixed;
             top: 50%;
@@ -383,7 +362,6 @@
             display: block;
         }
 
-        /* Mobile Optimizations */
         @media (max-width: 480px) {
             body {
                 padding: 12px;
@@ -449,14 +427,13 @@
             }
         }
 
-        /* Touch-friendly improvements */
         @media (hover: none) and (pointer: coarse) {
             .btn {
                 min-height: 44px;
             }
             
             .form-input {
-                font-size: 16px; /* Prevents zoom on iOS */
+                font-size: 16px;
             }
             
             .auth-tab {
@@ -464,7 +441,6 @@
             }
         }
 
-        /* Reduced motion for accessibility */
         @media (prefers-reduced-motion: reduce) {
             * {
                 animation-duration: 0.01ms !important;
@@ -706,7 +682,9 @@
             const profilePreview = document.getElementById('profilePreview');
             const rememberMeCheckbox = document.getElementById('rememberMe');
             const globalSpinner = document.getElementById('globalSpinner');
-            
+
+            let isRedirecting = false;
+
             // Enhanced loading functions
             function showGlobalLoading() {
                 if (globalSpinner) {
@@ -722,28 +700,17 @@
                 }
             }
 
-            function showStepLoading(stepElement) {
-                if (stepElement) {
-                    stepElement.classList.add('form-loading', 'active');
-                }
-            }
-
-            function hideStepLoading(stepElement) {
-                if (stepElement) {
-                    stepElement.classList.remove('form-loading', 'active');
-                }
-            }
-
             // Check for stored credentials and auto-login
             function checkAutoLogin() {
                 const storedCredentials = localStorage.getItem('whispa_credentials');
-                if (storedCredentials) {
+                if (storedCredentials && !isRedirecting) {
                     showGlobalLoading();
                     const { email, password } = JSON.parse(storedCredentials);
                     
                     setTimeout(() => {
                         auth.signInWithEmailAndPassword(email, password)
-                            .then(() => {
+                            .then((userCredential) => {
+                                isRedirecting = true;
                                 window.location.href = 'home.html';
                             })
                             .catch((error) => {
@@ -788,14 +755,9 @@
                     const nextStep = parseInt(e.target.getAttribute('data-next'));
                     const currentStepElement = document.querySelector('.form-step.active');
                     
-                    showStepLoading(currentStepElement);
-                    
-                    setTimeout(() => {
-                        if (validateStep(nextStep - 1)) {
-                            navigateToStep(nextStep);
-                        }
-                        hideStepLoading(currentStepElement);
-                    }, 300);
+                    if (validateStep(nextStep - 1)) {
+                        navigateToStep(nextStep);
+                    }
                 }
                 
                 if (e.target.classList.contains('prev-step')) {
@@ -940,6 +902,7 @@
                         const userCredential = await auth.signInWithEmailAndPassword(email, password.value);
                         
                         storeCredentials(email, password.value);
+                        isRedirecting = true;
                         window.location.href = 'home.html';
                         
                     } catch (error) {
@@ -988,7 +951,7 @@
                         await firestore.collection('users').doc(user.uid).set({
                             uid: user.uid,
                             username: username.value,
-                            name: username.value, // For compatibility with home.html
+                            name: username.value,
                             phone: `${countryCode.value}${cleanPhone}`,
                             birthDate: birthDate.value,
                             profileImage: imageUrl,
@@ -999,6 +962,7 @@
                         });
                         
                         storeCredentials(email, password.value);
+                        isRedirecting = true;
                         window.location.href = 'home.html';
                         
                     } catch (error) {
@@ -1124,13 +1088,6 @@
             function init() {
                 resetSignupForm();
                 checkAutoLogin();
-                
-                // Check if user is already logged in
-                auth.onAuthStateChanged((user) => {
-                    if (user) {
-                        window.location.href = 'home.html';
-                    }
-                });
             }
 
             // Initialize when DOM is ready
