@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Whispa - Secure Login</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
     <style>
         * {
             margin: 0;
@@ -477,7 +481,7 @@
     <div class="auth-container">
         <!-- Logo Section -->
         <div class="logo-section">
-            <img src="https://i.ibb.co/zVkw45Kc/Whispa-1-removebg-preview.png" alt="Whispa">
+            <img src="https://i.ibb.co/zVkw45Kc/Whispa-1-removebg-preview.png" alt="Whispa" onerror="this.style.display='none'">
             <h1>Whispa</h1>
         </div>
 
@@ -670,43 +674,26 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script type="module" id="firebase-script">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-analytics.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDLggigD7p7_-1amZKi91MVCZbLNnsQ6JE",
-            authDomain: "whispa-d453f.firebaseapp.com",
-            databaseURL: "https://whispa-d453f-default-rtdb.firebaseio.com",
-            projectId: "whispa-d453f",
-            storageBucket: "whispa-d453f.firebasestorage.app",
-            messagingSenderId: "315118383529",
-            appId: "1:315118383529:web:ba8e05067077333e8a14b8",
-            measurementId: "G-TWJY3MSC46"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        window.whispaAuth = {
-            auth: auth,
-            db: db,
-            createUserWithEmailAndPassword: createUserWithEmailAndPassword,
-            signInWithEmailAndPassword: signInWithEmailAndPassword,
-            onAuthStateChanged: onAuthStateChanged,
-            setDoc: setDoc,
-            doc: doc
-        };
-    </script>
-
     <script>
         (function() {
             'use strict';
+            
+            // Firebase configuration
+            const firebaseConfig = {
+                apiKey: "AIzaSyDLggigD7p7_-1amZKi91MVCZbLNnsQ6JE",
+                authDomain: "whispa-d453f.firebaseapp.com",
+                databaseURL: "https://whispa-d453f-default-rtdb.firebaseio.com",
+                projectId: "whispa-d453f",
+                storageBucket: "whispa-d453f.firebasestorage.app",
+                messagingSenderId: "315118383529",
+                appId: "1:315118383529:web:ba8e05067077333e8a14b8",
+                measurementId: "G-TWJY3MSC46"
+            };
+
+            // Initialize Firebase
+            firebase.initializeApp(firebaseConfig);
+            const auth = firebase.auth();
+            const firestore = firebase.firestore();
             
             const authTabs = document.querySelectorAll('.auth-tab');
             const authForms = document.querySelectorAll('.auth-form');
@@ -755,19 +742,15 @@
                     const { email, password } = JSON.parse(storedCredentials);
                     
                     setTimeout(() => {
-                        if (window.whispaAuth && window.whispaAuth.signInWithEmailAndPassword) {
-                            window.whispaAuth.signInWithEmailAndPassword(window.whispaAuth.auth, email, password)
-                                .then(() => {
-                                    window.location.href = 'home.html';
-                                })
-                                .catch((error) => {
-                                    console.log('Auto-login failed:', error);
-                                    localStorage.removeItem('whispa_credentials');
-                                    hideGlobalLoading();
-                                });
-                        } else {
-                            hideGlobalLoading();
-                        }
+                        auth.signInWithEmailAndPassword(email, password)
+                            .then(() => {
+                                window.location.href = 'home.html';
+                            })
+                            .catch((error) => {
+                                console.log('Auto-login failed:', error);
+                                localStorage.removeItem('whispa_credentials');
+                                hideGlobalLoading();
+                            });
                     }, 1000);
                 }
             }
@@ -946,17 +929,15 @@
                         return;
                     }
                     
-                    const email = `${countryCode.value}${phone.value}@gmail.com`;
+                    // Clean phone number (remove spaces, dashes, etc.)
+                    const cleanPhone = phone.value.replace(/\D/g, '');
+                    const email = `${countryCode.value}${cleanPhone}@whispa.com`;
                     
                     setLoading(loginBtn, true);
                     showGlobalLoading();
                     
                     try {
-                        const userCredential = await window.whispaAuth.signInWithEmailAndPassword(
-                            window.whispaAuth.auth, 
-                            email, 
-                            password.value
-                        );
+                        const userCredential = await auth.signInWithEmailAndPassword(email, password.value);
                         
                         storeCredentials(email, password.value);
                         window.location.href = 'home.html';
@@ -986,7 +967,9 @@
                     const password = document.getElementById('signupPassword');
                     const profileImage = profileImageInput ? profileImageInput.files[0] : null;
                     
-                    const email = `${countryCode.value}${phone.value}@gmail.com`;
+                    // Clean phone number
+                    const cleanPhone = phone.value.replace(/\D/g, '');
+                    const email = `${countryCode.value}${cleanPhone}@gmail.com`;
                     
                     setLoading(signupBtn, true);
                     showGlobalLoading();
@@ -998,21 +981,21 @@
                             imageUrl = await uploadImageToImgBB(profileImage);
                         }
                         
-                        const userCredential = await window.whispaAuth.createUserWithEmailAndPassword(
-                            window.whispaAuth.auth, 
-                            email, 
-                            password.value
-                        );
-                        
+                        const userCredential = await auth.createUserWithEmailAndPassword(email, password.value);
                         const user = userCredential.user;
                         
-                        await window.whispaAuth.setDoc(window.whispaAuth.doc(window.whispaAuth.db, "users", user.uid), {
+                        // Create user document in Firestore
+                        await firestore.collection('users').doc(user.uid).set({
                             uid: user.uid,
                             username: username.value,
-                            phone: `${countryCode.value}${phone.value}`,
+                            name: username.value, // For compatibility with home.html
+                            phone: `${countryCode.value}${cleanPhone}`,
                             birthDate: birthDate.value,
                             profileImage: imageUrl,
-                            createdAt: new Date().toISOString()
+                            userCode: generateUserCode(),
+                            status: 'online',
+                            lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp()
                         });
                         
                         storeCredentials(email, password.value);
@@ -1047,6 +1030,10 @@
                     console.error('Image upload error:', error);
                     return '';
                 }
+            }
+
+            function generateUserCode() {
+                return 'USER_' + Math.random().toString(36).substr(2, 9).toUpperCase();
             }
 
             function showError(elementId, message) {
@@ -1115,13 +1102,16 @@
                         errorMessage = 'An account with this phone number already exists.';
                         break;
                     case 'auth/weak-password':
-                        errorMessage = 'Password is too weak.';
+                        errorMessage = 'Password is too weak. Use at least 6 characters.';
                         break;
                     case 'auth/network-request-failed':
                         errorMessage = 'Network error. Please check your connection.';
                         break;
+                    case 'auth/operation-not-allowed':
+                        errorMessage = 'Email/password accounts are not enabled. Please contact support.';
+                        break;
                     default:
-                        errorMessage = error.message;
+                        errorMessage = error.message || 'An unexpected error occurred.';
                 }
                 
                 if (formType === 'login') {
@@ -1133,15 +1123,17 @@
 
             function init() {
                 resetSignupForm();
+                checkAutoLogin();
                 
-                const checkFirebase = setInterval(() => {
-                    if (window.whispaAuth && window.whispaAuth.auth) {
-                        clearInterval(checkFirebase);
-                        checkAutoLogin();
+                // Check if user is already logged in
+                auth.onAuthStateChanged((user) => {
+                    if (user) {
+                        window.location.href = 'home.html';
                     }
-                }, 100);
+                });
             }
 
+            // Initialize when DOM is ready
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', init);
             } else {
