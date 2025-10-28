@@ -25,11 +25,6 @@
             overflow: hidden;
         }
 
-        .app-container {
-            display: flex;
-            height: 100vh;
-        }
-
         /* Loading Screen */
         .loading-screen {
             position: fixed;
@@ -60,9 +55,50 @@
             font-size: 0.9em;
         }
 
+        .error-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .error-screen h2 {
+            color: #ff4444;
+            margin-bottom: 10px;
+        }
+
+        .error-screen p {
+            color: #888888;
+            margin-bottom: 20px;
+        }
+
+        .retry-btn {
+            padding: 10px 20px;
+            background: #00a884;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
         }
 
         /* Left Sidebar */
@@ -782,6 +818,13 @@
         <div class="loading-text">Loading Whispa...</div>
     </div>
 
+    <!-- Error Screen -->
+    <div class="error-screen" id="errorScreen">
+        <h2>Connection Error</h2>
+        <p>Unable to connect to Whispa. Please check your internet connection and try again.</p>
+        <button class="retry-btn" id="retryBtn">Retry</button>
+    </div>
+
     <!-- Modals -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal">
@@ -954,10 +997,17 @@
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const firestore = firebase.firestore();
-        const storage = firebase.storage();
+        let auth, firestore, storage;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+            firestore = firebase.firestore();
+            storage = firebase.storage();
+            console.log("Firebase initialized successfully");
+        } catch (error) {
+            console.error("Firebase initialization error:", error);
+            showError("Firebase initialization failed. Please refresh the page.");
+        }
 
         // imgBB API Key
         const IMGBB_API_KEY = '7275819de7bfd56f03b903f483157d22';
@@ -986,7 +1036,9 @@
 
         // DOM Elements
         const loadingScreen = document.getElementById('loadingScreen');
+        const errorScreen = document.getElementById('errorScreen');
         const appContainer = document.getElementById('appContainer');
+        const retryBtn = document.getElementById('retryBtn');
         const userAvatar = document.getElementById('userAvatar');
         const userName = document.getElementById('userName');
         const contentList = document.getElementById('contentList');
@@ -1017,11 +1069,32 @@
         const backgroundPreview = document.getElementById('backgroundPreview');
         const chatBackground = document.getElementById('chatBackground');
 
+        // Show error screen
+        function showError(message) {
+            loadingScreen.style.display = 'none';
+            appContainer.style.display = 'none';
+            errorScreen.style.display = 'flex';
+            if (message) {
+                errorScreen.querySelector('p').textContent = message;
+            }
+        }
+
+        // Hide error screen
+        function hideError() {
+            errorScreen.style.display = 'none';
+        }
+
         // Initialize the app
         function initApp() {
             console.log('Initializing Whispa app...');
             
-            // Set up authentication state observer with better error handling
+            // Check if Firebase is properly initialized
+            if (!auth) {
+                showError("Authentication service unavailable. Please refresh the page.");
+                return;
+            }
+            
+            // Set up authentication state observer
             auth.onAuthStateChanged((user) => {
                 console.log('Auth state changed:', user ? 'User logged in' : 'No user');
                 
@@ -1043,43 +1116,40 @@
                         // Show the app and hide loading screen
                         loadingScreen.style.display = 'none';
                         appContainer.style.display = 'flex';
+                        hideError();
                         
                         // Set up visibility change for status
                         document.addEventListener('visibilitychange', handleVisibilityChange);
                     }).catch(error => {
                         console.error('Error loading user data:', error);
-                        // If there's an error loading user data, sign out and redirect to login
-                        auth.signOut().then(() => {
-                            redirectToLogin();
-                        });
+                        showError('Failed to load user data. Please try again.');
                     });
                 } else {
-                    // No user is signed in
+                    // No user is signed in, redirect to login
                     console.log('No authenticated user, redirecting to login...');
                     redirectToLogin();
                 }
             }, (error) => {
                 // Error in auth state observer
                 console.error('Auth state observer error:', error);
-                redirectToLogin();
+                showError('Authentication error. Please try again.');
             });
 
             // Add a timeout fallback in case auth state doesn't resolve
             setTimeout(() => {
-                if (loadingScreen.style.display !== 'none') {
+                if (loadingScreen.style.display !== 'none' && !auth.currentUser) {
                     console.log('Auth state check timeout, checking current user...');
-                    const currentUser = auth.currentUser;
-                    if (!currentUser) {
+                    if (!auth.currentUser) {
                         redirectToLogin();
                     }
                 }
-            }, 5000);
+            }, 10000);
         }
 
         // Redirect to login page
         function redirectToLogin() {
             console.log('Redirecting to login page...');
-            // Use replace instead of href to prevent back button issues
+            // Use replace to prevent back navigation to home without auth
             window.location.replace('login.html');
         }
 
@@ -1137,18 +1207,24 @@
                     
                     return userData;
                 } else {
-                    // This shouldn't happen if the user was properly created during signup
-                    console.error('User document not found in Firestore');
-                    throw new Error('User data not found');
+                    // Create new user document if it doesn't exist
+                    currentUser.userCode = generateUserCode();
+                    await firestore.collection('users').doc(userId).set({
+                        userCode: currentUser.userCode,
+                        name: currentUser.name,
+                        username: currentUser.username,
+                        profileImage: currentUser.profileImage,
+                        status: 'online',
+                        lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    return currentUser;
                 }
             } catch (error) {
                 console.error('Error loading user data:', error);
                 throw error;
             }
         }
-
-        // The rest of your existing functions remain the same...
-        // [All other functions from your original code remain unchanged]
 
         // Generate unique user code
         function generateUserCode() {
@@ -1188,6 +1264,8 @@
                 if (currentChatId) {
                     updateCurrentChatStatus();
                 }
+            }, (error) => {
+                console.error('Error loading users:', error);
             });
         }
 
@@ -1204,6 +1282,8 @@
                         chats.push(chat);
                     });
                     renderContent();
+                }, (error) => {
+                    console.error('Error loading chats:', error);
                 });
         }
 
@@ -1220,12 +1300,16 @@
                         notifications.push(notification);
                     });
                     renderContent();
+                }, (error) => {
+                    console.error('Error loading notifications:', error);
                 });
         }
 
         // Listen for real-time updates and browser notifications
         function listenForRealTimeUpdates() {
             // Listen for new messages
+            if (chats.length === 0) return;
+            
             firestore.collection('messages')
                 .where('chatId', 'in', chats.map(chat => chat.id))
                 .orderBy('timestamp', 'desc')
@@ -1258,6 +1342,8 @@
                             }
                         }
                     });
+                }, (error) => {
+                    console.error('Error listening for messages:', error);
                 });
         }
 
@@ -1499,6 +1585,13 @@
 
             // Image upload
             document.getElementById('imageBtn').addEventListener('click', uploadImage);
+
+            // Retry button
+            retryBtn.addEventListener('click', () => {
+                hideError();
+                loadingScreen.style.display = 'flex';
+                initApp();
+            });
 
             // Update status when window closes
             window.addEventListener('beforeunload', () => {
@@ -2065,6 +2158,8 @@
                     });
                     
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }, (error) => {
+                    console.error('Error loading messages:', error);
                 });
         }
 
