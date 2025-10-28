@@ -528,6 +528,7 @@
             font-size: 0.9em;
             resize: none;
             max-height: 100px;
+            width: 60%; /* Smaller width for the input */
         }
 
         .message-input:focus {
@@ -566,6 +567,37 @@
 
         .send-btn:hover {
             background: #008f70;
+        }
+
+        /* Image Preview */
+        .image-preview-container {
+            position: relative;
+            display: inline-block;
+            margin: 10px 0;
+            max-width: 200px;
+        }
+
+        .image-preview {
+            max-width: 100%;
+            border-radius: 8px;
+            display: block;
+        }
+
+        .cancel-preview {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            background: #ff4444;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: white;
+            font-size: 12px;
+            border: 2px solid #1a1a1a;
         }
 
         /* Modals */
@@ -755,34 +787,6 @@
             border: 2px solid #111111;
         }
 
-        /* Audio Recorder */
-        .audio-recorder {
-            display: none;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            background: #2a2a2a;
-            border-radius: 20px;
-            margin: 0 10px;
-        }
-
-        .audio-recorder.active {
-            display: flex;
-        }
-
-        .recording-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #ff4444;
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
         /* Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
@@ -807,6 +811,10 @@
             
             .chat-area {
                 display: none;
+            }
+            
+            .message-input {
+                width: 100%; /* Full width on mobile */
             }
         }
     </style>
@@ -961,9 +969,6 @@
                         <button class="action-btn" title="Add Emoji" id="emojiBtn">
                             <i class="far fa-smile"></i>
                         </button>
-                        <button class="action-btn" title="Record Audio" id="recordBtn">
-                            <i class="fas fa-microphone"></i>
-                        </button>
                         <button class="action-btn" title="Send Image" id="imageBtn">
                             <i class="fas fa-image"></i>
                         </button>
@@ -972,12 +977,6 @@
                     <button class="action-btn send-btn" title="Send Message" id="sendButton">
                         <i class="fas fa-paper-plane"></i>
                     </button>
-                    
-                    <!-- Audio Recorder -->
-                    <div class="audio-recorder" id="audioRecorder">
-                        <div class="recording-dot"></div>
-                        <span>Recording... Click to stop</span>
-                    </div>
                 </div>
             </div>
         </div>
@@ -1029,10 +1028,8 @@
         let notifications = [];
         let currentChatId = null;
         let activeTab = 'chats';
-        let isRecording = false;
-        let mediaRecorder;
-        let audioChunks = [];
         let userStatus = {};
+        let imagePreviewUrl = null;
 
         // DOM Elements
         const loadingScreen = document.getElementById('loadingScreen');
@@ -1061,8 +1058,6 @@
         const userCodeDisplay = document.getElementById('userCodeDisplay');
         const chatMenuBtn = document.getElementById('chatMenuBtn');
         const chatMenu = document.getElementById('chatMenu');
-        const audioRecorder = document.getElementById('audioRecorder');
-        const recordBtn = document.getElementById('recordBtn');
         const backgroundBtn = document.getElementById('backgroundBtn');
         const backgroundModal = document.getElementById('backgroundModal');
         const backgroundInput = document.getElementById('backgroundInput');
@@ -1528,7 +1523,7 @@
 
             // Send message
             sendButton.addEventListener('click', sendMessage);
-            messageInput.addEventListener('keypress', (e) => {
+            messageInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
@@ -1560,9 +1555,6 @@
             document.addEventListener('click', () => {
                 chatMenu.classList.remove('show');
             });
-
-            // Audio recording
-            recordBtn.addEventListener('click', toggleRecording);
 
             // Background button
             backgroundBtn.addEventListener('click', showBackgroundModal);
@@ -1638,90 +1630,58 @@
             }, 100);
         }
 
-        // Toggle audio recording
-        async function toggleRecording() {
-            if (!isRecording) {
-                startRecording();
-            } else {
-                stopRecording();
-            }
-        }
-
-        // Start audio recording
-        async function startRecording() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-                
-                mediaRecorder.ondataavailable = (event) => {
-                    audioChunks.push(event.data);
-                };
-                
-                mediaRecorder.onstop = async () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                    await uploadAudio(audioBlob);
-                    stream.getTracks().forEach(track => track.stop());
-                };
-                
-                mediaRecorder.start();
-                isRecording = true;
-                audioRecorder.classList.add('active');
-                recordBtn.innerHTML = '<i class="fas fa-stop"></i>';
-                
-            } catch (error) {
-                console.error('Error starting recording:', error);
-                alert('Microphone access denied or not available');
-            }
-        }
-
-        // Stop audio recording
-        function stopRecording() {
-            if (mediaRecorder && isRecording) {
-                mediaRecorder.stop();
-                isRecording = false;
-                audioRecorder.classList.remove('active');
-                recordBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-            }
-        }
-
-        // Upload audio message
-        async function uploadAudio(audioBlob) {
-            try {
-                const fileName = `audio_${Date.now()}.wav`;
-                const storageRef = storage.ref().child(`audio/${currentUser.id}/${fileName}`);
-                await storageRef.put(audioBlob);
-                const audioUrl = await storageRef.getDownloadURL();
-                
-                await sendMessage('🎵 Audio message', audioUrl, 'audio');
-            } catch (error) {
-                console.error('Error uploading audio:', error);
-                alert('Error sending audio message');
-            }
-        }
-
         // Upload image
         function uploadImage() {
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = 'image/*';
-            input.onchange = async (e) => {
+            input.onchange = (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    try {
-                        const fileName = `image_${Date.now()}.jpg`;
-                        const storageRef = storage.ref().child(`images/${currentUser.id}/${fileName}`);
-                        await storageRef.put(file);
-                        const imageUrl = await storageRef.getDownloadURL();
-                        
-                        await sendMessage('🖼️ Image', imageUrl, 'image');
-                    } catch (error) {
-                        console.error('Error uploading image:', error);
-                        alert('Error sending image');
-                    }
+                    // Create image preview
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        imagePreviewUrl = e.target.result;
+                        showImagePreview(imagePreviewUrl);
+                    };
+                    reader.readAsDataURL(file);
                 }
             };
             input.click();
+        }
+
+        // Show image preview with cancel button
+        function showImagePreview(imageUrl) {
+            // Remove any existing preview
+            const existingPreview = document.querySelector('.image-preview-container');
+            if (existingPreview) {
+                existingPreview.remove();
+            }
+            
+            // Create preview container
+            const previewContainer = document.createElement('div');
+            previewContainer.className = 'image-preview-container';
+            
+            // Create image element
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.className = 'image-preview';
+            
+            // Create cancel button
+            const cancelBtn = document.createElement('div');
+            cancelBtn.className = 'cancel-preview';
+            cancelBtn.innerHTML = '<i class="fas fa-times"></i>';
+            cancelBtn.onclick = () => {
+                previewContainer.remove();
+                imagePreviewUrl = null;
+            };
+            
+            // Assemble preview
+            previewContainer.appendChild(img);
+            previewContainer.appendChild(cancelBtn);
+            
+            // Add to message input area
+            messageInputArea.insertBefore(previewContainer, messageInputArea.firstChild);
         }
 
         // Handle search
@@ -2143,9 +2103,7 @@
                         const timeString = formatTime(message.timestamp?.toDate());
                         
                         let messageContent = message.text;
-                        if (message.type === 'audio') {
-                            messageContent = `🎵 <audio controls src="${message.mediaUrl}" style="max-width: 200px;"></audio>`;
-                        } else if (message.type === 'image') {
+                        if (message.type === 'image') {
                             messageContent = `🖼️ <img src="${message.mediaUrl}" style="max-width: 200px; border-radius: 8px;" onclick="openImage('${message.mediaUrl}')">`;
                         }
                         
@@ -2216,9 +2174,37 @@
         // Send message
         async function sendMessage(text = null, mediaUrl = null, type = 'text') {
             const messageText = text || messageInput.value.trim();
-            if (!messageText || !currentChatId) return;
+            if (!messageText && !imagePreviewUrl) return;
 
             try {
+                let finalMediaUrl = mediaUrl;
+                let finalType = type;
+                
+                // If we have an image preview, upload it first
+                if (imagePreviewUrl && !mediaUrl) {
+                    try {
+                        // Convert data URL to blob
+                        const response = await fetch(imagePreviewUrl);
+                        const blob = await response.blob();
+                        
+                        // Upload to Firebase Storage
+                        const fileName = `image_${Date.now()}.jpg`;
+                        const storageRef = storage.ref().child(`images/${currentUser.id}/${fileName}`);
+                        await storageRef.put(blob);
+                        finalMediaUrl = await storageRef.getDownloadURL();
+                        finalType = 'image';
+                        
+                        // Clear the preview
+                        const preview = document.querySelector('.image-preview-container');
+                        if (preview) preview.remove();
+                        imagePreviewUrl = null;
+                    } catch (error) {
+                        console.error('Error uploading image:', error);
+                        alert('Error sending image');
+                        return;
+                    }
+                }
+                
                 const messageRef = firestore.collection('messages').doc();
                 const newMessage = {
                     id: messageRef.id,
@@ -2228,18 +2214,18 @@
                     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                     chatId: currentChatId,
                     read: false,
-                    type: type
+                    type: finalType
                 };
 
-                if (mediaUrl) {
-                    newMessage.mediaUrl = mediaUrl;
+                if (finalMediaUrl) {
+                    newMessage.mediaUrl = finalMediaUrl;
                 }
 
                 await messageRef.set(newMessage);
 
                 // Update chat last message and activity
                 await firestore.collection('chats').doc(currentChatId).update({
-                    lastMessage: type === 'text' ? messageText : `Sent ${type}`,
+                    lastMessage: finalType === 'text' ? messageText : `Sent ${finalType}`,
                     lastActivity: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
