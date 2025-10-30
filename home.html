@@ -100,6 +100,21 @@
             height: 100vh;
         }
 
+        /* Mobile Back Button */
+        .mobile-back-btn {
+            display: none;
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 1.2em;
+            z-index: 10;
+            cursor: pointer;
+        }
+
         /* Left Sidebar */
         .sidebar {
             width: 30%;
@@ -118,6 +133,7 @@
             padding: 16px;
             background: #1a1a1a;
             border-bottom: 1px solid #333333;
+            position: relative;
         }
 
         .profile-section {
@@ -800,20 +816,69 @@
             border-radius: 3px;
         }
 
+        /* Mobile Responsive Styles */
         @media (max-width: 768px) {
+            .app-container {
+                position: relative;
+                overflow: hidden;
+            }
+
             .sidebar {
                 width: 100%;
                 min-width: auto;
                 max-width: none;
                 resize: none;
+                position: absolute;
+                left: 0;
+                top: 0;
+                height: 100%;
+                z-index: 10;
+                transition: transform 0.3s ease;
+            }
+
+            .chat-area {
+                width: 100%;
+                position: absolute;
+                left: 0;
+                top: 0;
+                height: 100%;
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            }
+
+            .chat-area.active {
+                transform: translateX(0);
+            }
+
+            .sidebar.hidden {
+                transform: translateX(-100%);
+            }
+
+            .mobile-back-btn {
+                display: block;
+            }
+
+            .message-input {
+                width: 100%; /* Full width on mobile */
+            }
+
+            /* Adjust header padding for mobile */
+            .sidebar-header {
+                padding-top: 60px; /* Make room for status bar */
+            }
+
+            .chat-header-area {
+                padding-top: 60px; /* Make room for status bar */
+            }
+        }
+
+        @media (min-width: 769px) {
+            .sidebar {
+                display: flex !important;
             }
             
             .chat-area {
-                display: none;
-            }
-            
-            .message-input {
-                width: 100%; /* Full width on mobile */
+                display: flex !important;
             }
         }
     </style>
@@ -880,8 +945,13 @@
     </div>
 
     <div class="app-container" id="appContainer" style="display: none;">
+        <!-- Mobile Back Button -->
+        <button class="mobile-back-btn" id="mobileBackBtn" style="display: none;">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+
         <!-- Left Sidebar -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="profile-section">
                     <div class="profile-avatar" id="userAvatar">U</div>
@@ -916,7 +986,7 @@
         </div>
 
         <!-- Right Chat Area -->
-        <div class="chat-area">
+        <div class="chat-area" id="chatArea">
             <!-- Chat Background -->
             <div class="chat-background" id="chatBackground"></div>
             
@@ -1028,12 +1098,16 @@
         let activeTab = 'chats';
         let userStatus = {};
         let imagePreviewUrl = null;
+        let isMobile = window.innerWidth <= 768;
 
         // DOM Elements
         const loadingScreen = document.getElementById('loadingScreen');
         const errorScreen = document.getElementById('errorScreen');
         const appContainer = document.getElementById('appContainer');
         const retryBtn = document.getElementById('retryBtn');
+        const mobileBackBtn = document.getElementById('mobileBackBtn');
+        const sidebar = document.getElementById('sidebar');
+        const chatArea = document.getElementById('chatArea');
         const userAvatar = document.getElementById('userAvatar');
         const userName = document.getElementById('userName');
         const contentList = document.getElementById('contentList');
@@ -1077,9 +1151,48 @@
             errorScreen.style.display = 'none';
         }
 
+        // Mobile navigation functions
+        function showChatArea() {
+            if (isMobile) {
+                sidebar.classList.add('hidden');
+                chatArea.classList.add('active');
+                mobileBackBtn.style.display = 'block';
+            }
+        }
+
+        function showSidebar() {
+            if (isMobile) {
+                sidebar.classList.remove('hidden');
+                chatArea.classList.remove('active');
+                mobileBackBtn.style.display = 'none';
+                currentChatId = null;
+                
+                // Reset chat UI
+                emptyChat.style.display = 'flex';
+                messagesContainer.style.display = 'none';
+                messageInputArea.style.display = 'none';
+                backgroundBtn.style.display = 'none';
+            }
+        }
+
+        // Check if device is mobile
+        function checkMobile() {
+            isMobile = window.innerWidth <= 768;
+            if (!isMobile) {
+                // Reset to desktop view
+                sidebar.classList.remove('hidden');
+                chatArea.classList.remove('active');
+                mobileBackBtn.style.display = 'none';
+            }
+        }
+
         // Initialize the app
         function initApp() {
             console.log('Initializing Whispa app...');
+            
+            // Check screen size
+            checkMobile();
+            window.addEventListener('resize', checkMobile);
             
             // Check if Firebase is properly initialized
             if (!auth) {
@@ -1500,6 +1613,9 @@
 
         // Set up event listeners
         function setupEventListeners() {
+            // Mobile back button
+            mobileBackBtn.addEventListener('click', showSidebar);
+
             // Tab switching
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -1516,6 +1632,11 @@
                 if (chatItem) {
                     const chatId = chatItem.getAttribute('data-chat-id');
                     openChat(chatId);
+                    
+                    // On mobile, show chat area and hide sidebar
+                    if (isMobile) {
+                        showChatArea();
+                    }
                 }
             });
 
@@ -1916,6 +2037,11 @@
                     messageInputArea.style.display = 'none';
                     backgroundBtn.style.display = 'none';
                     currentChatId = null;
+                    
+                    // On mobile, go back to sidebar
+                    if (isMobile) {
+                        showSidebar();
+                    }
                     
                     alert('Chat deleted successfully');
                     chatMenu.classList.remove('show');
