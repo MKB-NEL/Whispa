@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect } from 'react';
 
-// ============ TYPES ============
 type Operation = '+' | '-' | '×' | '÷' | '=' | 'C' | '±' | '%' | '.' | '⌫';
 type CalculatorState = {
   current: string;
@@ -11,7 +10,6 @@ type CalculatorState = {
   resetNext: boolean;
 };
 
-// ============ MAIN CALCULATOR ============
 export default function Calculator() {
   const [state, setState] = useState<CalculatorState>({
     current: '0',
@@ -21,7 +19,6 @@ export default function Calculator() {
   });
   const [history, setHistory] = useState<string[]>([]);
 
-  // Helper: format numbers with commas
   const formatNum = (num: string) => {
     if (num === 'Error') return 'Error';
     const parts = num.split('.');
@@ -29,10 +26,8 @@ export default function Calculator() {
     return parts.join('.');
   };
 
-  // Helper: parse number
   const parseNum = (val: string) => parseFloat(val.replace(/,/g, ''));
 
-  // Calculate result
   const calculate = (a: number, b: number, op: Operation) => {
     let result: number;
     switch (op) {
@@ -50,10 +45,8 @@ export default function Calculator() {
     return result.toString();
   };
 
-  // Handle all inputs
   const handleInput = useCallback((value: string | number) => {
     if (typeof value === 'number') {
-      // Number input
       setState(prev => {
         if (prev.resetNext) {
           return { ...prev, current: value.toString(), resetNext: false };
@@ -67,12 +60,10 @@ export default function Calculator() {
       return;
     }
 
-    // Operation input
     setState(prev => {
       const currentNum = parseNum(prev.current);
       const prevNum = prev.previous ? parseNum(prev.previous) : 0;
 
-      // Equals
       if (value === '=') {
         if (!prev.operation) return { ...prev, resetNext: true };
         const result = calculate(prevNum, currentNum, prev.operation);
@@ -80,34 +71,28 @@ export default function Calculator() {
         return { current: result, previous: '', operation: null, resetNext: true };
       }
 
-      // Clear
       if (value === 'C') {
         return { current: '0', previous: '', operation: null, resetNext: false };
       }
 
-      // Percentage
       if (value === '%') {
         return { ...prev, current: (currentNum / 100).toString(), resetNext: true };
       }
 
-      // Negate
       if (value === '±') {
         return { ...prev, current: (currentNum * -1).toString() };
       }
 
-      // Backspace
       if (value === '⌫') {
         const curr = prev.current.replace(/,/g, '');
         return { ...prev, current: curr.length <= 1 ? '0' : curr.slice(0, -1) };
       }
 
-      // Decimal
       if (value === '.') {
         if (prev.current.includes('.')) return prev;
         return { ...prev, current: prev.current + '.' };
       }
 
-      // Operations (+, -, ×, ÷)
       if (prev.operation && !prev.resetNext) {
         const result = calculate(prevNum, currentNum, prev.operation);
         return { ...prev, current: result, previous: result, operation: value, resetNext: true };
@@ -117,7 +102,6 @@ export default function Calculator() {
     });
   }, []);
 
-  // Keyboard support
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       const key = e.key;
@@ -134,7 +118,6 @@ export default function Calculator() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [handleInput]);
 
-  // Button definitions
   const buttons = [
     ['C', '±', '%', '÷'],
     ['7', '8', '9', '×'],
@@ -160,14 +143,12 @@ export default function Calculator() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
       <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 transition-colors">
-        {/* History */}
         {history.length > 0 && (
           <div className="text-right text-xs text-gray-400 dark:text-gray-500 mb-1 truncate">
             {history[history.length - 1]}
           </div>
         )}
 
-        {/* Display */}
         <div className="mb-4 text-right">
           <div className="text-sm text-gray-500 dark:text-gray-400 h-6">
             {state.operation ? `${formatNum(state.previous)} ${state.operation}` : ''}
@@ -177,7 +158,6 @@ export default function Calculator() {
           </div>
         </div>
 
-        {/* Buttons */}
         <div className="grid grid-cols-4 gap-3">
           {buttons.map((row, i) => 
             row.map((label, j) => {
@@ -202,7 +182,6 @@ export default function Calculator() {
           )}
         </div>
 
-        {/* Footer */}
         <div className="mt-4 text-center text-xs text-gray-400 dark:text-gray-500">
           ⌨️ Keyboard supported
         </div>
