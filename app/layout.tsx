@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Calculator',
-  description: 'Minimal calculator app',
+  description: 'Modern calculator app',
 };
 
 export default function RootLayout({
